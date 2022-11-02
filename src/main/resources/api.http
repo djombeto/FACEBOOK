@@ -88,7 +88,7 @@ POST  http://localhost:8080/users/unfollow/5
 
 
 ### created post
-POST  http://localhost:8080/posts/create
+POST  http://localhost:8080/posts
 Content-Type: application/json
 
 {

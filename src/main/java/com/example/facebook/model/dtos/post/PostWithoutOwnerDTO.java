@@ -16,6 +16,8 @@ public class PostWithoutOwnerDTO {
     private long postId;
     private String content;
     private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
     private String privacy;
 
     private List<CreateCommentDTO> comments;
@@ -26,7 +28,8 @@ public class PostWithoutOwnerDTO {
                                long postId,
                                String content,
                                String privacy,
-                               LocalDateTime createdAt){
+                               LocalDateTime createdAt,
+                               LocalDateTime updatedAt){
         this.title = TITLE;
         this.ownerName = ownerName;
         this.ownerId = ownerId;
@@ -34,6 +37,7 @@ public class PostWithoutOwnerDTO {
         this.content = content;
         this.privacy = privacy;
         this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 }
 

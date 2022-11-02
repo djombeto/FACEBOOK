@@ -4,11 +4,9 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-public class CreatePostDTO {
+public class EditPostDTO {
 
     private String content;
     private String privacy;
-    private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
-

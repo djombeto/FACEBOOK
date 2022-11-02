@@ -11,6 +11,8 @@ public class CreateCommentDTO {
 
     private String title;
     private String ownerName;
+
+    private long ownerId;
     private long commentId;
     private String content;
     private LocalDateTime createdAt;

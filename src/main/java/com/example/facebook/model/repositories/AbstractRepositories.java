@@ -31,7 +31,7 @@ public class AbstractRepositories {
     public List<PostWithoutOwnerDTO> newsFeedQuery(long userId) {
         return jdbcTemplate.query(
                 "SELECT CONCAT (u.first_name,' ',u.last_name) AS full_name, " +
-                    "p.owner_id, p.id, p.content, p.privacy, p.created_at " +
+                    "p.owner_id, p.id, p.content, p.privacy, p.created_at, p.updated_at " +
                     "FROM posts AS p " +
                     "JOIN friends AS fr ON (p.owner_id = fr.friend_id) " +
                     "JOIN followers AS fl ON (p.owner_id = fl.user_id) " +
@@ -41,12 +41,13 @@ public class AbstractRepositories {
                     "AND p.privacy = 'only friends' " +
                     "UNION " +
                     "SELECT CONCAT (u.first_name,' ',u.last_name) AS full_name," +
-                    "p.owner_id, p.id, p.content, p.privacy, p.created_at FROM posts AS p " +
+                    "p.owner_id, p.id, p.content, p.privacy, p.created_at, p.updated_at " +
+                    "FROM posts AS p " +
                     "JOIN users AS u ON (p.owner_id = u.id) " +
                     "WHERE p.privacy = 'public' AND owner_id != " + userId + " " +
                     "UNION " +
                     "SELECT CONCAT (u.first_name,' ',u.last_name) AS full_name, " +
-                    "p.owner_id, p.id, p.content, p.privacy, p.created_at " +
+                    "p.owner_id, p.id, p.content, p.privacy, p.created_at, p.updated_at " +
                     "FROM posts AS p " +
                     "JOIN users AS u ON (p.owner_id = u.id) " +
                     "WHERE owner_id = " + userId + " " +
@@ -59,7 +60,8 @@ public class AbstractRepositories {
                         rs.getLong("id"),
                         rs.getString("content"),
                         rs.getString("privacy"),
-                        rs.getTimestamp("created_at").toLocalDateTime()
+                        rs.getTimestamp("created_at").toLocalDateTime(),
+                        rs.getTimestamp("updated_at").toLocalDateTime()
                 )
         );
     }
@@ -85,7 +87,7 @@ public class AbstractRepositories {
     public List<PostWithoutOwnerDTO> myPostsQuery(long userId) {
         return jdbcTemplate.query(
                 "SELECT CONCAT (u.first_name,' ',u.last_name) AS full_name," +
-                    "p.owner_id, p.id, p.content, p.privacy, p.created_at " +
+                    "p.owner_id, p.id, p.content, p.privacy, p.created_at, p.updated_at " +
                     "FROM posts AS p " +
                     "JOIN users AS u ON (p.owner_id = u.id) " +
                     "WHERE p.owner_id = " + userId + " " +
@@ -96,7 +98,8 @@ public class AbstractRepositories {
                         rs.getLong("id"),
                         rs.getString("content"),
                         rs.getString("privacy"),
-                        rs.getTimestamp("created_at").toLocalDateTime()
+                        rs.getTimestamp("created_at").toLocalDateTime(),
+                        rs.getTimestamp("updated_at").toLocalDateTime()
                 )
         );
     }

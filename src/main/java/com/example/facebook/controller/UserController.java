@@ -91,14 +91,14 @@ public class UserController extends AbstractController {
     public ResponseEntity<FriendDTO> addFriend(HttpSession session,
                                                @PathVariable (name = "fid") long friendId) {
         long userId = getUserId(session);
-        compareBothId(userId, friendId, "You cannot add themselves");
+        compareBothId(userId, friendId, "You cannot add yourself");
         return new ResponseEntity<>(userService.addFriend(userId, friendId), HttpStatus.OK);
     }
 
     @DeleteMapping("users/delete/{fid}")
     public void deleteFriend(HttpSession session, @PathVariable (name = "fid") long friendId) {
         long userId = getUserId(session);
-        compareBothId(userId, friendId,"You cannot delete themselves");
+        compareBothId(userId, friendId,"You cannot delete yourself");
         userService.deleteFriend(userId, friendId);
     }
 
@@ -106,7 +106,7 @@ public class UserController extends AbstractController {
     public ResponseEntity<FriendDTO> followFriend(HttpSession session,
                                                   @PathVariable (name = "fid") long friendId) {
         long userId = getUserId(session);
-        compareBothId(userId, friendId, "You cannot follow themselves" );
+        compareBothId(userId, friendId, "You cannot follow yourself" );
         return new ResponseEntity<>(userService.followFriend(userId, friendId), HttpStatus.OK);
     }
 
@@ -114,7 +114,7 @@ public class UserController extends AbstractController {
     public void unfollowFriend(HttpSession session,
                                                   @PathVariable (name = "fid") long friendId) {
         long userId = getUserId(session);
-        compareBothId(userId, friendId, "You cannot unfollow themselves" );
+        compareBothId(userId, friendId, "You cannot unfollow yourself" );
         userService.unfollowFriend(userId, friendId);
     }
 }
