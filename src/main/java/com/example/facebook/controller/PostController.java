@@ -31,4 +31,10 @@ public class PostController extends AbstractController {
         long uid = getUserId(session);
         return new ResponseEntity<>(postService.editPost(uid, postId, dto), HttpStatus.CREATED);
     }
+
+    @DeleteMapping("/posts/{pid}")
+    public void deletePost(@PathVariable (name = "pid") long postId, HttpSession session){
+        long uid = getUserId(session);
+        postService.deletePost(uid, postId);
+    }
 }

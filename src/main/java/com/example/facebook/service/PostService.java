@@ -46,4 +46,18 @@ public class PostService extends AbstractRepositories {
         });
         return postWithoutOwnerDTOS;
     }
+
+    public void deletePost(long userId, long postId) {
+        User user = validateUser(userId);
+        Post post = validatePost(postId);
+        if (post.getOwner() != user){
+            throw new UnauthorizedException("You cannot delete post which is not yours");
+        }
+        jdbcTemplate.execute("DELETE FROM comments " +
+                                 "WHERE post_id = " + postId);
+
+        jdbcTemplate.execute("DELETE FROM posts " +
+                                 "WHERE id = " + postId +  " " +
+                                 "AND owner_id = " + userId);
+    }
 }
