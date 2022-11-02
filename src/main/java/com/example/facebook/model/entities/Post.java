@@ -1,8 +1,12 @@
 package com.example.facebook.model.entities;
 
+import lombok.Data;
+
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
+@Data
 @Entity
 @Table(name = "posts")
 public class Post {
@@ -17,5 +21,11 @@ public class Post {
     @Column
     private LocalDateTime updatedAt;
     @Column
-    private long ownerId;
+    private String privacy;
+    @ManyToOne
+    @JoinColumn(name = "owner_id")
+    private User owner;
+
+    @OneToMany(mappedBy = "post")
+    private List<Comment> comments;
 }

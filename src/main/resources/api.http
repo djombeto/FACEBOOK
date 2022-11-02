@@ -1,0 +1,105 @@
+### register
+POST http://localhost:8080/users/register
+Content-Type: application/json
+
+{
+  "firstName" : "Gesha",
+  "lastName" : "Ivanov",
+  "dateOfBirthday" : "1980-05-09",
+  "email" : "Gosho90@gmail.com",
+  "mobileNumber" : "0884357712",
+  "passwordHash" : "1234@Labadaba",
+  "confirmPasswordHash" : "1234@Labadaba",
+  "gender" : "m"
+}
+
+### login
+POST http://localhost:8080/users/login
+Content-Type: application/json
+
+{
+  "email" : "Nora@abv.bg",
+  "passwordHash" : "1234@Labadaba"
+}
+
+
+### logout
+POST http://localhost:8080/users/logout
+
+
+### newsfeed
+GET http://localhost:8080/users/newsfeed
+
+
+### my profile page
+GET http://localhost:8080/users/myProfile
+
+
+### find friends by name
+GET http://localhost:8080/users/D
+
+
+### find all friends
+GET http://localhost:8080/users
+
+
+### deleteProfile
+DELETE http://localhost:8080/users
+
+
+### edin info
+PUT http://localhost:8080/users/edit/info
+Content-Type: application/json
+
+{
+  "firstName" : "Nora",
+  "lastName" : "Sabir",
+  "email" : "Nora@abv.bg",
+  "mobileNumber" : "0889357712",
+  "gender" : "f"
+}
+
+
+### change password
+PUT http://localhost:8080/users/edit/password
+Content-Type: application/json
+
+{
+  "currentPassword" : "321@Arebe",
+  "newPassword" : "1234@Labadaba",
+  "confirmNewPassword" : "1234@Labadaba"
+
+}
+
+### add friend
+POST http://localhost:8080/users/add/6
+
+
+### delete friend
+DELETE http://localhost:8080/users/delete/6
+
+
+### follow friend
+POST  http://localhost:8080/users/follow/5
+
+
+### unfollow friend
+POST  http://localhost:8080/users/unfollow/5
+
+
+### created post
+POST  http://localhost:8080/posts/create
+Content-Type: application/json
+
+{
+   "content" : "Tova e nai-noviqt post na NORA!",
+   "privacy" : "only friend"
+}
+
+### comment post
+POST  http://localhost:8080/comments/12
+Content-Type: application/json
+
+{
+  "content" : "Q da komentiram malko tuka!"
+}
