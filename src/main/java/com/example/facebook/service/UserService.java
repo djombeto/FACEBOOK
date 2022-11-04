@@ -1,7 +1,7 @@
 package com.example.facebook.service;
 
 import com.example.facebook.model.dtos.user.*;
-import com.example.facebook.model.entities.User;
+import com.example.facebook.model.entities.user.User;
 import com.example.facebook.model.exceptions.BadRequestException;
 import com.example.facebook.model.exceptions.UnauthorizedException;
 import com.example.facebook.model.repositories.AbstractRepositories;
@@ -146,6 +146,7 @@ public class UserService extends AbstractRepositories {
         friend.addFriend(user);
         userRepository.save(user);
         followFriend(userId,friendId);
+        followFriend(friendId, userId);
         return modelMapper.map(friend, FriendDTO.class);
     }
 
@@ -170,6 +171,7 @@ public class UserService extends AbstractRepositories {
                         "AND friend_id = " + userId);
 
             unfollowFriend(userId,friendId);
+            unfollowFriend(friendId, userId);
         }
     }
 

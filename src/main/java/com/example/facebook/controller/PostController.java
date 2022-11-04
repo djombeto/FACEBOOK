@@ -26,7 +26,7 @@ public class PostController extends AbstractController {
     public ResponseEntity<List<PostWithoutOwnerDTO>> editPost(
                                                                     @RequestBody EditPostDTO dto,
                                                                     @PathVariable (name = "pid")
-                                                                    long postId,
+                                                                                    long postId,
                                                                     HttpSession session){
         long uid = getUserId(session);
         return new ResponseEntity<>(postService.editPost(uid, postId, dto), HttpStatus.CREATED);
@@ -36,5 +36,13 @@ public class PostController extends AbstractController {
     public void deletePost(@PathVariable (name = "pid") long postId, HttpSession session){
         long uid = getUserId(session);
         postService.deletePost(uid, postId);
+    }
+
+
+    @PostMapping("/posts/{pid}/react")
+    public ResponseEntity<List<PostWithoutOwnerDTO>> reactToPost(@PathVariable(name = "pid") long postId,
+                                                              HttpSession session){
+        long uid = getUserId(session);
+        return new ResponseEntity<>(postService.reactToPost(uid, postId), HttpStatus.CREATED);
     }
 }

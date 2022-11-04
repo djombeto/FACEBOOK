@@ -11,5 +11,4 @@ public class AbstractService {
     protected  CommentService commentService;
     @Autowired
     protected  PostService postService;
-
 }

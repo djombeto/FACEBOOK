@@ -2,9 +2,9 @@ package com.example.facebook.model.repositories;
 
 import com.example.facebook.model.dtos.comment.CreateCommentDTO;
 import com.example.facebook.model.dtos.post.PostWithoutOwnerDTO;
-import com.example.facebook.model.entities.Comment;
-import com.example.facebook.model.entities.Post;
-import com.example.facebook.model.entities.User;
+import com.example.facebook.model.entities.comment.Comment;
+import com.example.facebook.model.entities.post.Post;
+import com.example.facebook.model.entities.user.User;
 import com.example.facebook.model.exceptions.NotFoundExceptions;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +21,8 @@ public class AbstractRepositories {
     protected IPostRepository postRepository;
     @Autowired
     protected IUserRepository userRepository;
+    @Autowired
+    protected IPostReactionRepository userReactToPostRepository;
     @Autowired
     protected ModelMapper modelMapper;
     @Autowired
@@ -40,18 +42,18 @@ public class AbstractRepositories {
                     "AND fl.follower_id = " + userId + " " +
                     "AND p.privacy = 'only friends' " +
                     "UNION " +
-                    "SELECT CONCAT (u.first_name,' ',u.last_name) AS full_name," +
+                    "SELECT CONCAT (u.first_name,' ',u.last_name) AS full_name, " +
                     "p.owner_id, p.id, p.content, p.privacy, p.created_at, p.updated_at " +
                     "FROM posts AS p " +
                     "JOIN users AS u ON (p.owner_id = u.id) " +
-                    "WHERE p.privacy = 'public' AND owner_id != " + userId + " " +
+                    "WHERE p.privacy = 'public' " +
                     "UNION " +
                     "SELECT CONCAT (u.first_name,' ',u.last_name) AS full_name, " +
                     "p.owner_id, p.id, p.content, p.privacy, p.created_at, p.updated_at " +
                     "FROM posts AS p " +
                     "JOIN users AS u ON (p.owner_id = u.id) " +
-                    "WHERE owner_id = " + userId + " " +
-                    "AND p.privacy = 'public' OR p.privacy = 'only friends'" +
+                    "WHERE p.owner_id = " + userId + " " +
+                    "AND p.privacy = 'only friends'" +
                     "ORDER BY created_at DESC",
 
                 (rs, rowNum) -> new PostWithoutOwnerDTO(
@@ -69,9 +71,9 @@ public class AbstractRepositories {
     public List<CreateCommentDTO> commentsQuery(long userId) {
         return jdbcTemplate.query(
                 "SELECT CONCAT(u.first_name,' ',u.last_name) AS full_name," +
-                    " c.owner_id, c.id, c.content, c.created_at, c.updated_at " +
+                    "c.owner_id, c.id, c.content, c.created_at, c.updated_at " +
                     "FROM comments AS c " +
-                    "JOIN users AS u ON (c.owner_id = u.id)" + " " +
+                    "JOIN users AS u ON (c.owner_id = u.id) " +
                     "WHERE c.post_id = " + userId + " " +
                     "ORDER BY created_at DESC",
                 (rs, rowNum) -> new CreateCommentDTO(

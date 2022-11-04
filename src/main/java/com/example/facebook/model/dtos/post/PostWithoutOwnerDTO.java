@@ -23,13 +23,14 @@ public class PostWithoutOwnerDTO {
     private List<CreateCommentDTO> comments;
 
 
+
     public PostWithoutOwnerDTO(String ownerName,
                                long ownerId,
                                long postId,
                                String content,
                                String privacy,
                                LocalDateTime createdAt,
-                               LocalDateTime updatedAt){
+                               LocalDateTime updatedA){
         this.title = TITLE;
         this.ownerName = ownerName;
         this.ownerId = ownerId;

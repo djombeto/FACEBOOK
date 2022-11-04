@@ -1,10 +1,11 @@
-package com.example.facebook.model.entities;
+package com.example.facebook.model.entities.comment;
 
+import com.example.facebook.model.entities.user.User;
+import com.example.facebook.model.entities.post.Post;
 import lombok.Data;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Data
 @Entity

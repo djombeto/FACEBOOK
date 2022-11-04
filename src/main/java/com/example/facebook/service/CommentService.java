@@ -2,9 +2,9 @@ package com.example.facebook.service;
 
 import com.example.facebook.model.dtos.comment.CreateCommentDTO;
 import com.example.facebook.model.dtos.user.NewsFeedDTO;
-import com.example.facebook.model.entities.Comment;
-import com.example.facebook.model.entities.Post;
-import com.example.facebook.model.entities.User;
+import com.example.facebook.model.entities.comment.Comment;
+import com.example.facebook.model.entities.post.Post;
+import com.example.facebook.model.entities.user.User;
 import com.example.facebook.model.repositories.AbstractRepositories;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;

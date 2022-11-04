@@ -3,8 +3,10 @@ package com.example.facebook.service;
 import com.example.facebook.model.dtos.post.CreatePostDTO;
 import com.example.facebook.model.dtos.post.EditPostDTO;
 import com.example.facebook.model.dtos.post.PostWithoutOwnerDTO;
-import com.example.facebook.model.entities.Post;
-import com.example.facebook.model.entities.User;
+import com.example.facebook.model.entities.post.Post;
+import com.example.facebook.model.entities.user.User;
+import com.example.facebook.model.entities.post.PostReaction;
+import com.example.facebook.model.entities.post.PostReactionsKey;
 import com.example.facebook.model.exceptions.UnauthorizedException;
 import com.example.facebook.model.repositories.AbstractRepositories;
 import org.springframework.stereotype.Service;
@@ -59,5 +61,25 @@ public class PostService extends AbstractRepositories {
         jdbcTemplate.execute("DELETE FROM posts " +
                                  "WHERE id = " + postId +  " " +
                                  "AND owner_id = " + userId);
+    }
+
+    public List<PostWithoutOwnerDTO> reactToPost(long userId, long postId) {
+        User user = validateUser(userId);
+        Post post = validatePost(postId);
+        PostReactionsKey userReactToPostKey = new PostReactionsKey();
+        userReactToPostKey.setUserId(userId);
+        userReactToPostKey.setPostId(postId);
+        PostReaction userReactToPost = new PostReaction();
+        userReactToPost.setUsers(user);
+        userReactToPost.setPosts(post);
+        userReactToPost.setReactionType("(y)");
+        userReactToPost.setId(userReactToPostKey);
+        userReactToPostRepository.save(userReactToPost);
+        List<PostWithoutOwnerDTO> postWithoutOwnerDTOS = myPostsQuery(userId);
+        postWithoutOwnerDTOS.forEach(p -> {
+            long pid = p.getPostId();
+            p.setComments(commentsQuery(pid));
+        });
+        return postWithoutOwnerDTOS;
     }
 }

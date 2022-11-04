@@ -1,5 +1,7 @@
-package com.example.facebook.model.entities;
+package com.example.facebook.model.entities.post;
 
+import com.example.facebook.model.entities.comment.Comment;
+import com.example.facebook.model.entities.user.User;
 import lombok.Data;
 
 import javax.persistence.*;
@@ -28,4 +30,7 @@ public class Post {
 
     @OneToMany(mappedBy = "post")
     private List<Comment> comments;
+
+    @OneToMany(mappedBy = "posts")
+    List<PostReaction> likers;
 }

@@ -1,5 +1,8 @@
-package com.example.facebook.model.entities;
+package com.example.facebook.model.entities.user;
 
+import com.example.facebook.model.entities.comment.Comment;
+import com.example.facebook.model.entities.post.Post;
+import com.example.facebook.model.entities.post.PostReaction;
 import lombok.Data;
 import javax.persistence.*;
 import java.time.LocalDate;
@@ -46,6 +49,10 @@ public class User {
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "follower_id"))
     private List<User> myFollowers;
+
+
+    @OneToMany(mappedBy = "users")
+    List<PostReaction> likers;
 
     public void addFriend(User friend){
         myFriends.add(friend);

@@ -1,6 +1,6 @@
 package com.example.facebook.model.repositories;
 
-import com.example.facebook.model.entities.User;
+import com.example.facebook.model.entities.user.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
