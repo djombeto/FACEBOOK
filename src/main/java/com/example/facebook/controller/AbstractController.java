@@ -8,7 +8,6 @@ import com.example.facebook.service.AbstractService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
-
 import javax.servlet.http.HttpSession;
 import java.time.LocalDateTime;
 
@@ -50,20 +49,13 @@ public abstract class AbstractController extends AbstractService {
         return dto;
     }
 
-
     public void logUserAndSetAttribute(HttpSession session, long userId, String userIp) {
         session.setAttribute(LOGGED, true);
         session.setAttribute(USER_ID, userId);
         session.setAttribute(REMOTE_ADDRESS, userIp);
     }
 
-    public void compareBothId(long userId, long friendId, String message){
-        if (userId == friendId){
-            throw new BadRequestException(message);
-        }
-    }
-
-    public long getUserId(HttpSession session){
+    public long getUserById(HttpSession session){
         if (session.getAttribute(USER_ID) == null){
             return 0;
         }

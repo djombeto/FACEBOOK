@@ -2,56 +2,51 @@ package com.example.facebook.service;
 
 import com.example.facebook.model.dtos.post.CreatePostDTO;
 import com.example.facebook.model.dtos.post.EditPostDTO;
-import com.example.facebook.model.dtos.post.PostWithoutOwnerDTO;
+import com.example.facebook.model.dtos.user.NewsFeedDTO;
 import com.example.facebook.model.entities.post.Post;
 import com.example.facebook.model.entities.user.User;
 import com.example.facebook.model.entities.post.PostReaction;
 import com.example.facebook.model.entities.post.PostReactionsKey;
+import com.example.facebook.model.exceptions.BadRequestException;
 import com.example.facebook.model.exceptions.UnauthorizedException;
 import com.example.facebook.model.repositories.AbstractRepositories;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Service
 public class PostService extends AbstractRepositories {
-    public List<PostWithoutOwnerDTO> createPost(long userId, CreatePostDTO dto) {
+    public NewsFeedDTO createPost(long userId, CreatePostDTO dto) {
         dto.setCreatedAt(LocalDateTime.now());
         dto.setUpdatedAt(LocalDateTime.now());
-        User user = validateUser(userId);
+        User user = verifyUser(userId);
         Post post = modelMapper.map(dto, Post.class);
         post.setOwner(user);
         postRepository.save(post);
-        List<PostWithoutOwnerDTO> postWithoutOwnerDTOS = myPostsQuery(userId);
-        postWithoutOwnerDTOS.forEach(p -> {
-            long postId = p.getPostId();
-            p.setComments(commentsQuery(postId));
-        });
-        return postWithoutOwnerDTOS;
+        return giveNewsfeedOnUser(user);
     }
 
-    public List<PostWithoutOwnerDTO> editPost(long userId, long postId, EditPostDTO dto) {
-        dto.setUpdatedAt(LocalDateTime.now());
-        User user = validateUser(userId);
-        Post post = validatePost(postId);
+    public NewsFeedDTO editPost(long userId, long postId, EditPostDTO dto) {
+        User user = verifyUser(userId);
+        Post post = verifyPost(postId);
         if (post.getOwner() != user){
             throw new UnauthorizedException("You cannot edit post which is not yours");
         }
+        if (dto.getContent().isBlank() || dto.getContent() == null){
+            throw  new BadRequestException("Content is blank");
+        }
         post.setContent(dto.getContent());
         post.setPrivacy(dto.getPrivacy());
-        post.setUpdatedAt(dto.getUpdatedAt());
+        post.setUpdatedAt(LocalDateTime.now());
         postRepository.save(post);
-        List<PostWithoutOwnerDTO> postWithoutOwnerDTOS = myPostsQuery(userId);
-        postWithoutOwnerDTOS.forEach(p -> {
-            long pid = p.getPostId();
-            p.setComments(commentsQuery(pid));
-        });
-        return postWithoutOwnerDTOS;
+        return giveNewsfeedOnUser(user);
     }
 
+    @Transactional
     public void deletePost(long userId, long postId) {
-        User user = validateUser(userId);
-        Post post = validatePost(postId);
+        User user = verifyUser(userId);
+        Post post = verifyPost(postId);
         if (post.getOwner() != user){
             throw new UnauthorizedException("You cannot delete post which is not yours");
         }
@@ -63,23 +58,18 @@ public class PostService extends AbstractRepositories {
                                  "AND owner_id = " + userId);
     }
 
-    public List<PostWithoutOwnerDTO> reactToPost(long userId, long postId) {
-        User user = validateUser(userId);
-        Post post = validatePost(postId);
-        PostReactionsKey userReactToPostKey = new PostReactionsKey();
-        userReactToPostKey.setUserId(userId);
-        userReactToPostKey.setPostId(postId);
-        PostReaction userReactToPost = new PostReaction();
-        userReactToPost.setUsers(user);
-        userReactToPost.setPosts(post);
-        userReactToPost.setReactionType("(y)");
-        userReactToPost.setId(userReactToPostKey);
-        userReactToPostRepository.save(userReactToPost);
-        List<PostWithoutOwnerDTO> postWithoutOwnerDTOS = myPostsQuery(userId);
-        postWithoutOwnerDTOS.forEach(p -> {
-            long pid = p.getPostId();
-            p.setComments(commentsQuery(pid));
-        });
-        return postWithoutOwnerDTOS;
+    public NewsFeedDTO reactToPost(long userId, long postId, String reaction) {
+        User user = verifyUser(userId);
+        Post post = verifyPost(postId);
+        PostReactionsKey postReactionsKey = new PostReactionsKey();
+        postReactionsKey.setUserId(userId);
+        postReactionsKey.setPostId(postId);
+        PostReaction postReaction = new PostReaction();
+        postReaction.setUser(user);
+        postReaction.setPost(post);
+        postReaction.setReactionType(reaction);
+        postReaction.setId(postReactionsKey);
+        postReactionRepository.save(postReaction);
+        return giveNewsfeedOnUser(user);
     }
 }

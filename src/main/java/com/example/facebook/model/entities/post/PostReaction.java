@@ -16,12 +16,12 @@ public class PostReaction {
     @ManyToOne
     @MapsId("userId")
     @JoinColumn(name = "user_id")
-    private User users;
+    private User user;
 
     @ManyToOne
     @MapsId("postId")
     @JoinColumn(name = "post_id")
-    private Post posts;
+    private Post post;
 
     private String reactionType;
 }

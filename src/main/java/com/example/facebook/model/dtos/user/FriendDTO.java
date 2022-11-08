@@ -4,7 +4,7 @@ import lombok.Data;
 import lombok.Setter;
 
 @Data
-public class FriendDTO{
+public class FriendDTO {
 
     private long id;
     private String firstName;

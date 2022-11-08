@@ -7,7 +7,7 @@ import com.example.facebook.model.exceptions.UnauthorizedException;
 import com.example.facebook.model.repositories.AbstractRepositories;
 import com.example.facebook.model.utility.RegexValidator;
 import org.springframework.stereotype.Service;
-
+import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -25,7 +25,7 @@ public class UserService extends AbstractRepositories {
     }
 
     public List<FriendDTO> findFriendsByName(long userId, String name) {
-        validateUser(userId);
+        verifyUser(userId);
         String firstName = name;
         String lastName = name;
         String[] names = name.split("\\s+");
@@ -33,22 +33,24 @@ public class UserService extends AbstractRepositories {
             firstName = names[0];
             lastName = names[1];
             return jdbcTemplate.query(
-                    "SELECT u.id, u.first_name, u.last_name FROM users AS u " +
-                            "JOIN friends AS f ON (u.id = f.friend_id) " +
-                            "WHERE f.user_id = " + userId + " " +
-                            "AND u.first_name LIKE '" + firstName + "%' " +
-                            "AND u.last_name LIKE '" + lastName + "%'",
+                    "SELECT u.id, u.first_name, u.last_name " +
+                        "FROM users AS u " +
+                        "JOIN friends AS f ON (u.id = f.friend_id) " +
+                        "WHERE f.user_id = " + userId + " " +
+                        "AND u.first_name LIKE '" + firstName + "%'" +
+                        "AND u.last_name LIKE '" + lastName + "%'",
                     (rs, rowNum) -> new FriendDTO(
                             rs.getLong("id"),
                             rs.getString("first_name"),
                             rs.getString("last_name")));
         } else {
             return jdbcTemplate.query(
-                    "SELECT u.id, u.first_name, u.last_name FROM users AS u " +
-                            "JOIN friends AS f ON (u.id = f.friend_id) " +
-                            "WHERE f.user_id = " + userId + " " +
-                            "AND u.first_name LIKE '" + firstName + "%' " +
-                            "OR u.last_name LIKE '" + lastName + "%'",
+                    "SELECT u.id, u.first_name, u.last_name " +
+                        "FROM users AS u " +
+                        "JOIN friends AS f ON (u.id = f.friend_id) " +
+                        "WHERE f.user_id = " + userId + " " +
+                        "AND u.first_name LIKE '" + firstName + "%'" +
+                        "OR u.last_name LIKE '" + lastName + "%'",
                     (rs, rowNum) -> new FriendDTO(
                             rs.getLong("id"),
                             rs.getString("first_name"),
@@ -57,7 +59,7 @@ public class UserService extends AbstractRepositories {
     }
 
     public List<FriendDTO> findAllFriends(long userId) {
-        User user = validateUser(userId);
+        User user = verifyUser(userId);
         List<User> users = user.getMyFriends();
         return users
                 .stream()
@@ -74,42 +76,22 @@ public class UserService extends AbstractRepositories {
         if (!encoder.matches(password, user.getPasswordHash())) {
             throw new UnauthorizedException("Invalid email or password");
         }
-        long userId = user.getId();
-        NewsFeedDTO newsFeedDTO = modelMapper.map(user, NewsFeedDTO.class);
-        newsFeedDTO.setNewsFeed(newsFeedQuery(userId));
-        newsFeedDTO.getNewsFeed().forEach(e -> {
-            long postId = e.getPostId();
-            e.setComments(commentsQuery(postId));
-        });
-        return newsFeedDTO;
+        return giveNewsfeedOnUser(user);
     }
 
     public NewsFeedDTO newsFeed(long userId) {
-        User user = validateUser(userId);
-        NewsFeedDTO newsFeedDTO = modelMapper.map(user, NewsFeedDTO.class);
-        newsFeedDTO.setNewsFeed(newsFeedQuery(userId));
-        newsFeedDTO.getNewsFeed().forEach(e -> {
-            long postId = e.getPostId();
-            e.setComments(commentsQuery(postId));
-        });
-        return newsFeedDTO;
+        User user = verifyUser(userId);
+        return giveNewsfeedOnUser(user);
     }
 
     public UserProfileDTO myProfile(long userId) {
-        User user = validateUser(userId);
-        UserProfileDTO profileDTO = modelMapper.map(user, UserProfileDTO.class);
-        profileDTO.setMyPosts(myPostsQuery(userId));
-        profileDTO.getMyPosts().forEach(n -> {
-            long postId = n.getPostId();
-            n.setComments(commentsQuery(postId));
-        });
-        return profileDTO;
+        User user = verifyUser(userId);
+        return givePostsOnUser(user);
     }
-
 
     public EditProfileDTO editInfo(EditProfileDTO dto, long userId) {
         validateEditProfileDTO(dto);
-        User user = validateUser(userId);
+        User user = verifyUser(userId);
         user.setFirstName(dto.getFirstName());
         user.setLastName(dto.getLastName());
         user.setEmail(dto.getEmail());
@@ -119,56 +101,57 @@ public class UserService extends AbstractRepositories {
         return modelMapper.map(user, EditProfileDTO.class);
     }
 
+    @Transactional
     public void deleteProfile(long userId) {
-        User user = validateUser(userId);
-        jdbcTemplate.execute("DELETE FROM friends WHERE user_id = " + userId + " " +
-                "AND friend_id = " + userId);
+        User user = verifyUser(userId);
+        jdbcTemplate.execute("DELETE FROM friends " +
+                                 "WHERE user_id = " + userId + " " +
+                                 "AND friend_id = " + userId);
 
-        jdbcTemplate.execute("DELETE FROM followers WHERE user_id = " + userId + " " +
-                "AND follower_id = " + userId);
+        jdbcTemplate.execute("DELETE FROM followers " +
+                                 "WHERE user_id = " + userId + " " +
+                                 "AND follower_id = " + userId);
 
         userRepository.deleteById(userId);
     }
 
     public FriendDTO addFriend(long userId, long friendId) {
-        User user = validateUser(userId);
-        User friend = validateUser(friendId);
-        if (!jdbcTemplate.query(
-                "SELECT * FROM friends " +
-                    "WHERE user_id = " + userId + " " +
-                    "AND friend_id = " + friendId,
-                (rs, rowNum) -> new FriendDTO(
-                        rs.getLong("friend_id"))).isEmpty()
-        ) {
+        compareBothId(userId, friendId, "You cannot add yourself");
+        User user = verifyUser(userId);
+        User friend = verifyUser(friendId);
+        if (!jdbcTemplate.query("SELECT * FROM friends " +
+                                    "WHERE user_id = " + userId + " " +
+                                    "AND friend_id = " + friendId,
+                                (rs, rowNum) -> new FriendDTO(
+                                     rs.getLong("friend_id"))).isEmpty()
+        ){
             throw new BadRequestException("You are already friends");
         }
         user.addFriend(friend);
         friend.addFriend(user);
-        userRepository.save(user);
         followFriend(userId,friendId);
         followFriend(friendId, userId);
+        userRepository.save(user);
         return modelMapper.map(friend, FriendDTO.class);
     }
-
+    @Transactional
     public void deleteFriend(long userId, long friendId) {
-        if (jdbcTemplate.query(
-                "SELECT * FROM friends " +
-                    "WHERE user_id = " + userId + " " +
-                    "AND friend_id = " + friendId,
-                (rs, rowNum) -> new FriendDTO(
-                        rs.getLong("friend_id"))).isEmpty()
+        compareBothId(userId, friendId,"You cannot delete yourself");
+        if (jdbcTemplate.query("SELECT * FROM friends " +
+                                   "WHERE user_id = " + userId + " " +
+                                   "AND friend_id = " + friendId,
+                                (rs, rowNum) -> new FriendDTO(
+                                    rs.getLong("friend_id"))).isEmpty()
         ) {
             throw new BadRequestException("You don't have a friend with this id");
         } else {
-            jdbcTemplate.execute(
-                    "DELETE FROM friends " +
-                        "WHERE user_id = " + userId + " " +
-                        "AND friend_id = " + friendId);
+            jdbcTemplate.execute("DELETE FROM friends " +
+                                     "WHERE user_id = " + userId + " " +
+                                     "AND friend_id = " + friendId);
 
-            jdbcTemplate.execute(
-                    "DELETE FROM friends " +
-                        "WHERE user_id = " + friendId + " " +
-                        "AND friend_id = " + userId);
+            jdbcTemplate.execute("DELETE FROM friends " +
+                                     "WHERE user_id = " + friendId + " " +
+                                     "AND friend_id = " + userId);
 
             unfollowFriend(userId,friendId);
             unfollowFriend(friendId, userId);
@@ -176,16 +159,18 @@ public class UserService extends AbstractRepositories {
     }
 
     public FriendDTO followFriend(long userId, long friendId) {
-        User user = validateUser(userId);
-        User friend = validateUser(friendId);
+        compareBothId(userId, friendId, "You cannot follow yourself");
+        User user = verifyUser(userId);
+        User friend = verifyUser(friendId);
         friend.addFollower(user);
         userRepository.save(user);
         return modelMapper.map(friend, FriendDTO.class);
     }
 
     public void unfollowFriend(long userId, long friendId) {
-        User user = validateUser(userId);
-        User friend = validateUser(friendId);
+        compareBothId(userId, friendId, "You cannot unfollow yourself");
+        User user = verifyUser(userId);
+        User friend = verifyUser(friendId);
         friend.getMyFollowers().remove(user);
         jdbcTemplate.execute("DELETE FROM followers " +
                                  "WHERE user_id = " + friendId + " " +
@@ -194,7 +179,7 @@ public class UserService extends AbstractRepositories {
 
     public void editPassword(long userId, EditPasswordDTO dto) {
         validateEditPasswordDTO(dto);
-        User user = validateUser(userId);
+        User user = verifyUser(userId);
         if (!encoder.matches(dto.getCurrentPassword(), user.getPasswordHash())) {
             throw new UnauthorizedException("Invalid password");
         }
@@ -213,10 +198,13 @@ public class UserService extends AbstractRepositories {
         if (RegexValidator.patternEmails(dto.getEmail())) {
             throw new BadRequestException("Invalid email");
         }
+        if (RegexValidator.patternPhoneNumber(dto.getMobileNumber())) {
+            throw new BadRequestException("Invalid phone number");
+        }
         if (!dto.getGender().equals("m") && !dto.getGender().equals("f") && !dto.getGender().equals("o")) {
             throw new BadRequestException("The gender is not valid.");
         }
-        if (!RegexValidator.patternDate(dto.getDateOfBirthday())) {
+        if (RegexValidator.patternDate(dto.getDateOfBirthday())) {
             throw new BadRequestException("Invalid date");
         }
         validateDateOfBirth(dto.getDateOfBirthday());
@@ -226,9 +214,6 @@ public class UserService extends AbstractRepositories {
         }
         if (!dto.getPasswordHash().equals(dto.getConfirmPasswordHash())) {
             throw new BadRequestException("The passwords do not match");
-        }
-        if (RegexValidator.patternPhoneNumber(dto.getMobileNumber())) {
-            throw new BadRequestException("Invalid phone number");
         }
         if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
             throw new BadRequestException("An user with this email has already been registered.");
@@ -251,6 +236,13 @@ public class UserService extends AbstractRepositories {
         }
         if (RegexValidator.patternPhoneNumber(dto.getMobileNumber())) {
             throw new BadRequestException("Invalid phone number");
+        }
+        if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
+            throw new BadRequestException("An user with this email has already been registered.");
+        }
+        if (userRepository.findByMobileNumber(dto.getMobileNumber()).isPresent()) {
+            throw new BadRequestException("An user with this mobile number " +
+                    "has already been registered.");
         }
     }
 
@@ -276,6 +268,12 @@ public class UserService extends AbstractRepositories {
         }
         if (years > 150) {
             throw new BadRequestException("Too old to be alive.");
+        }
+    }
+
+    private void compareBothId(long userId, long friendId, String message){
+        if (userId == friendId){
+            throw new BadRequestException(message);
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.example.facebook.model.entities.user;
 
 import com.example.facebook.model.entities.comment.Comment;
+import com.example.facebook.model.entities.comment.CommentReaction;
 import com.example.facebook.model.entities.post.Post;
 import com.example.facebook.model.entities.post.PostReaction;
 import lombok.Data;
@@ -51,8 +52,11 @@ public class User {
     private List<User> myFollowers;
 
 
-    @OneToMany(mappedBy = "users")
-    List<PostReaction> likers;
+    @OneToMany(mappedBy = "user")
+    List<PostReaction> postLikes;
+
+    @OneToMany(mappedBy = "user")
+    List<CommentReaction> commentLikes;
 
     public void addFriend(User friend){
         myFriends.add(friend);

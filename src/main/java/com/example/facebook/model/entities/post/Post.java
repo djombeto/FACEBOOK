@@ -31,6 +31,6 @@ public class Post {
     @OneToMany(mappedBy = "post")
     private List<Comment> comments;
 
-    @OneToMany(mappedBy = "posts")
-    List<PostReaction> likers;
+    @OneToMany(mappedBy = "post")
+    private List<PostReaction> PostLikes;
 }

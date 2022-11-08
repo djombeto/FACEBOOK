@@ -14,7 +14,7 @@ public class RegexValidator {
     Does not contain space, tab, etc.
     */
     public static final String PASSWORD_REGEX = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])" +
-            "(?=.*[@#$%^&+=])(?=\\S+$).{8,35}$";
+                                                        "(?=.*[@#$%^&+=])(?=\\S+$).{8,35}$";
     public static final String FIRST_LAST_NAME_REGEX = "([A-Z][a-z]*)([\\\\s\\\\\\'-][A-Z][a-z]*)*";
 
     public static final String DATE_REGEX = "^\\d{4}\\-(0?[1-9]|1[012])\\-(0?[1-9]|[12][0-9]|3[01])$";
@@ -48,7 +48,7 @@ public class RegexValidator {
     }
     public static boolean patternDate(LocalDate date) {
         String d = date.toString();
-        return Pattern.compile(DATE_REGEX)
+        return !Pattern.compile(DATE_REGEX)
                 .matcher(d)
                 .matches();
     }

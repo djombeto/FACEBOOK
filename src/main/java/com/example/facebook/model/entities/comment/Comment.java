@@ -1,11 +1,13 @@
 package com.example.facebook.model.entities.comment;
 
+import com.example.facebook.model.entities.post.PostReaction;
 import com.example.facebook.model.entities.user.User;
 import com.example.facebook.model.entities.post.Post;
 import lombok.Data;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Entity
@@ -29,5 +31,8 @@ public class Comment {
     @ManyToOne
     @JoinColumn(name = "post_id")
     private Post post;
+
+    @OneToMany(mappedBy = "comment")
+    private List<CommentReaction> commentLikes;
 
 }
