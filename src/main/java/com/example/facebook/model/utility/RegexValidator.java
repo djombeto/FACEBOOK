@@ -24,8 +24,6 @@ public class RegexValidator {
     public static final String PHONE_NUMBER_REGEX = "^(\\+\\d{1,3}( )?)?((\\(\\d{1,3}\\))|\\d{1,3})" +
                                                             "[- .]?\\d{3,4}[- .]?\\d{4}$";
 
-
-
     public static boolean patternNames(String name) {
         return !Pattern.compile(FIRST_LAST_NAME_REGEX)
                 .matcher(name)

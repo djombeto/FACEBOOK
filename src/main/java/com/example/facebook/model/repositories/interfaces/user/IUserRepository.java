@@ -1,4 +1,4 @@
-package com.example.facebook.model.repositories;
+package com.example.facebook.model.repositories.interfaces.user;
 
 import com.example.facebook.model.entities.post.Post;
 import com.example.facebook.model.entities.user.User;

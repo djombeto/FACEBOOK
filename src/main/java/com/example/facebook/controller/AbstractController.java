@@ -57,7 +57,7 @@ public abstract class AbstractController extends AbstractService {
 
     public long getUserById(HttpSession session){
         if (session.getAttribute(USER_ID) == null){
-            return 0;
+            throw new UnauthorizedException("You have log in first");
         }
         return (long) session.getAttribute(USER_ID);
     }

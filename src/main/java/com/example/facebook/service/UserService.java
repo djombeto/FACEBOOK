@@ -17,54 +17,16 @@ import java.util.stream.Collectors;
 public class UserService extends AbstractRepositories {
 
     public UserWithoutPassDTO register(RegisterDTO dto) {
-        validateRegisterDTO(dto);
+        validateFirsLastName(dto);
+        validateDateOfBirth(dto);
+        validateMobileNumber(dto);
+        validateEmail(dto);
+        validateGender(dto);
+        validatePassword(dto);
         User user = modelMapper.map(dto, User.class);
         user.setPasswordHash(encoder.encode(dto.getPasswordHash()));
         userRepository.save(user);
         return modelMapper.map(user, UserWithoutPassDTO.class);
-    }
-
-    public List<FriendDTO> findFriendsByName(long userId, String name) {
-        verifyUser(userId);
-        String firstName = name;
-        String lastName = name;
-        String[] names = name.split("\\s+");
-        if (names.length > 1) {
-            firstName = names[0];
-            lastName = names[1];
-            return jdbcTemplate.query(
-                    "SELECT u.id, u.first_name, u.last_name " +
-                        "FROM users AS u " +
-                        "JOIN friends AS f ON (u.id = f.friend_id) " +
-                        "WHERE f.user_id = " + userId + " " +
-                        "AND u.first_name LIKE '" + firstName + "%'" +
-                        "AND u.last_name LIKE '" + lastName + "%'",
-                    (rs, rowNum) -> new FriendDTO(
-                            rs.getLong("id"),
-                            rs.getString("first_name"),
-                            rs.getString("last_name")));
-        } else {
-            return jdbcTemplate.query(
-                    "SELECT u.id, u.first_name, u.last_name " +
-                        "FROM users AS u " +
-                        "JOIN friends AS f ON (u.id = f.friend_id) " +
-                        "WHERE f.user_id = " + userId + " " +
-                        "AND u.first_name LIKE '" + firstName + "%'" +
-                        "OR u.last_name LIKE '" + lastName + "%'",
-                    (rs, rowNum) -> new FriendDTO(
-                            rs.getLong("id"),
-                            rs.getString("first_name"),
-                            rs.getString("last_name")));
-        }
-    }
-
-    public List<FriendDTO> findAllFriends(long userId) {
-        User user = verifyUser(userId);
-        List<User> users = user.getMyFriends();
-        return users
-                .stream()
-                .map(u -> modelMapper.map(u, FriendDTO.class))
-                .collect(Collectors.toList());
     }
 
     public NewsFeedDTO login(LoginDTO dto) {
@@ -76,21 +38,23 @@ public class UserService extends AbstractRepositories {
         if (!encoder.matches(password, user.getPasswordHash())) {
             throw new UnauthorizedException("Invalid email or password");
         }
-        return giveNewsfeedOnUser(user);
+        return giveNewsfeedForUser(user);
     }
 
     public NewsFeedDTO newsFeed(long userId) {
         User user = verifyUser(userId);
-        return giveNewsfeedOnUser(user);
+        return giveNewsfeedForUser(user);
     }
 
     public UserProfileDTO myProfile(long userId) {
         User user = verifyUser(userId);
-        return givePostsOnUser(user);
+        return givePostsForUser(user);
     }
 
     public EditProfileDTO editInfo(EditProfileDTO dto, long userId) {
-        validateEditProfileDTO(dto);
+        validateFirsLastName(dto);
+        validateEmail(dto);
+        validateMobileNumber(dto);
         User user = verifyUser(userId);
         user.setFirstName(dto.getFirstName());
         user.setLastName(dto.getLastName());
@@ -99,6 +63,16 @@ public class UserService extends AbstractRepositories {
         user.setGender(dto.getGender());
         userRepository.save(user);
         return modelMapper.map(user, EditProfileDTO.class);
+    }
+
+    public void editPassword(long userId, EditPasswordDTO dto) {
+        User user = verifyUser(userId);
+        if (!encoder.matches(dto.getOldPassword(), user.getPasswordHash())) {
+            throw new UnauthorizedException("Invalid password");
+        }
+        validatePassword(dto);
+        user.setPasswordHash(encoder.encode(dto.getPasswordHash()));
+        userRepository.save(user);
     }
 
     @Transactional
@@ -177,92 +151,104 @@ public class UserService extends AbstractRepositories {
                                  "AND follower_id = " +  userId);
     }
 
-    public void editPassword(long userId, EditPasswordDTO dto) {
-        validateEditPasswordDTO(dto);
-        User user = verifyUser(userId);
-        if (!encoder.matches(dto.getCurrentPassword(), user.getPasswordHash())) {
-            throw new UnauthorizedException("Invalid password");
+    public List<FriendDTO> findFriendsByName(long userId, String name) {
+        verifyUser(userId);
+        String firstName = name;
+        String lastName = name;
+        String[] names = name.split("\\s+");
+        if (names.length > 1) {
+            firstName = names[0];
+            lastName = names[1];
+            return jdbcTemplate.query(
+                    "SELECT u.id, u.first_name, u.last_name " +
+                            "FROM users AS u " +
+                            "JOIN friends AS f ON (u.id = f.friend_id) " +
+                            "WHERE f.user_id = " + userId + " " +
+                            "AND u.first_name LIKE '" + firstName + "%'" +
+                            "AND u.last_name LIKE '" + lastName + "%'",
+                    (rs, rowNum) -> new FriendDTO(
+                            rs.getLong("id"),
+                            rs.getString("first_name"),
+                            rs.getString("last_name")));
+        } else {
+            return jdbcTemplate.query(
+                    "SELECT u.id, u.first_name, u.last_name " +
+                            "FROM users AS u " +
+                            "JOIN friends AS f ON (u.id = f.friend_id) " +
+                            "WHERE f.user_id = " + userId + " " +
+                            "AND u.first_name LIKE '" + firstName + "%'" +
+                            "OR u.last_name LIKE '" + lastName + "%'",
+                    (rs, rowNum) -> new FriendDTO(
+                            rs.getLong("id"),
+                            rs.getString("first_name"),
+                            rs.getString("last_name")));
         }
-        user.setPasswordHash(encoder.encode(dto.getNewPassword()));
-        userRepository.save(user);
     }
 
-    private void validateRegisterDTO(RegisterDTO dto) {
+    public List<FriendDTO> findAllFriends(long userId) {
+        User user = verifyUser(userId);
+        List<User> users = user.getMyFriends();
+        return users
+                .stream()
+                .map(u -> modelMapper.map(u, FriendDTO.class))
+                .collect(Collectors.toList());
+    }
 
+    private void validateFirsLastName(AbstractMasterDTO dto){
         if (RegexValidator.patternNames(dto.getFirstName())) {
             throw new BadRequestException("Invalid first name");
         }
         if (RegexValidator.patternNames(dto.getLastName())) {
             throw new BadRequestException("Invalid last name");
         }
-        if (RegexValidator.patternEmails(dto.getEmail())) {
-            throw new BadRequestException("Invalid email");
-        }
+    }
+
+    private void validateMobileNumber(AbstractMasterDTO dto){
         if (RegexValidator.patternPhoneNumber(dto.getMobileNumber())) {
             throw new BadRequestException("Invalid phone number");
         }
+
+        if (userRepository.findByMobileNumber(dto.getMobileNumber()).isPresent()) {
+            throw new BadRequestException("An user with this mobile number " +
+                    "has already been registered.");
+        }
+    }
+
+    private void validateEmail(AbstractMasterDTO dto){
+        if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
+            throw new BadRequestException("An user with this email has already been registered.");
+        }
+        if (RegexValidator.patternEmails(dto.getEmail())) {
+            throw new BadRequestException("Invalid email");
+        }
+    }
+
+    private void validateGender(AbstractMasterDTO dto){
         if (!dto.getGender().equals("m") && !dto.getGender().equals("f") && !dto.getGender().equals("o")) {
             throw new BadRequestException("The gender is not valid.");
         }
-        if (RegexValidator.patternDate(dto.getDateOfBirthday())) {
-            throw new BadRequestException("Invalid date");
-        }
-        validateDateOfBirth(dto.getDateOfBirthday());
+    }
 
+    private void validatePassword(AbstractMasterDTO dto){
         if (RegexValidator.patternPassword(dto.getPasswordHash())) {
             throw new BadRequestException("The password is not secure");
         }
         if (!dto.getPasswordHash().equals(dto.getConfirmPasswordHash())) {
             throw new BadRequestException("The passwords do not match");
         }
-        if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
-            throw new BadRequestException("An user with this email has already been registered.");
-        }
-        if (userRepository.findByMobileNumber(dto.getMobileNumber()).isPresent()) {
-            throw new BadRequestException("An user with this mobile number " +
-                    "has already been registered.");
-        }
     }
 
-    private void validateEditProfileDTO(EditProfileDTO dto) {
-        if (RegexValidator.patternNames(dto.getFirstName())) {
-            throw new BadRequestException("Invalid first name");
-        }
-        if (RegexValidator.patternNames(dto.getLastName())) {
-            throw new BadRequestException("Invalid last name");
-        }
-        if (RegexValidator.patternEmails(dto.getEmail())) {
-            throw new BadRequestException("Invalid email");
-        }
-        if (RegexValidator.patternPhoneNumber(dto.getMobileNumber())) {
-            throw new BadRequestException("Invalid phone number");
-        }
-        if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
-            throw new BadRequestException("An user with this email has already been registered.");
-        }
-        if (userRepository.findByMobileNumber(dto.getMobileNumber()).isPresent()) {
-            throw new BadRequestException("An user with this mobile number " +
-                    "has already been registered.");
-        }
-    }
-
-    private void validateEditPasswordDTO(EditPasswordDTO dto) {
-        if (RegexValidator.patternPassword(dto.getNewPassword())) {
-            throw new BadRequestException("The password is not secure");
-        }
-        if (!dto.getNewPassword().equals(dto.getConfirmNewPassword())) {
-            throw new BadRequestException("The passwords do not match");
-        }
-    }
-
-    private void validateDateOfBirth(LocalDate dateOfBirth) {
-        if (dateOfBirth == null) {
+    private void validateDateOfBirth(AbstractMasterDTO dto) {
+        if (dto.getDateOfBirthday() == null) {
             throw new BadRequestException("The date of birth is blank.");
         }
-        if (dateOfBirth.isAfter(LocalDate.now())) {
+        if (RegexValidator.patternDate(dto.getDateOfBirthday())) {
+            throw new BadRequestException("Invalid date");
+        }
+        if (dto.getDateOfBirthday().isAfter(LocalDate.now())) {
             throw new BadRequestException("The date of birth is after the current date.");
         }
-        long years = ChronoUnit.YEARS.between(dateOfBirth, LocalDate.now());
+        long years = ChronoUnit.YEARS.between(dto.getDateOfBirthday(), LocalDate.now());
         if (years < 18) {
             throw new BadRequestException("Too young.");
         }

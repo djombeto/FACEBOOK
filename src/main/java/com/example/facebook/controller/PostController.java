@@ -32,10 +32,10 @@ public class PostController extends AbstractController {
     }
 
     @PostMapping("/posts/{pid}/react/{react}")
-    public ResponseEntity<NewsFeedDTO> reactToPost(@PathVariable(name = "pid") long postId,
-                                                   @PathVariable(name = "react") String reaction,
-                                                                            HttpSession session){
+    public ResponseEntity<NewsFeedDTO> reactToPostOrDislike(@PathVariable(name = "pid") long postId,
+                                                            @PathVariable(name = "react") String reaction,
+                                                            HttpSession session){
         long uid = getUserById(session);
-        return new ResponseEntity<>(postService.reactToPost(uid, postId, reaction), HttpStatus.OK);
+        return new ResponseEntity<>(postService.reactToPostOrDislike(uid, postId, reaction), HttpStatus.OK);
     }
 }

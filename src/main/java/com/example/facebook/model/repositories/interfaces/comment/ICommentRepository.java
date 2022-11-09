@@ -1,4 +1,4 @@
-package com.example.facebook.model.repositories;
+package com.example.facebook.model.repositories.interfaces.comment;
 
 import com.example.facebook.model.entities.comment.Comment;
 import org.springframework.data.jpa.repository.JpaRepository;

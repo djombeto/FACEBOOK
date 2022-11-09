@@ -1,10 +1,7 @@
 package com.example.facebook.model.entities.comment;
 
-import com.example.facebook.model.entities.post.Post;
-import com.example.facebook.model.entities.post.PostReactionsKey;
 import com.example.facebook.model.entities.user.User;
 import lombok.Data;
-
 import javax.persistence.*;
 
 @Entity

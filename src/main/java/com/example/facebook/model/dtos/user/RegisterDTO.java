@@ -5,7 +5,7 @@ import lombok.Data;
 import java.time.LocalDate;
 
 @Data
-public class RegisterDTO {
+public class RegisterDTO extends AbstractMasterDTO {
 
     private long id;
     private String firstName;

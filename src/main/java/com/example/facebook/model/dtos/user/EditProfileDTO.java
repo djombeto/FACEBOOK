@@ -4,7 +4,7 @@ import lombok.Data;
 
 import java.time.LocalDate;
 @Data
-public class EditProfileDTO {
+public class EditProfileDTO extends AbstractMasterDTO {
 
     private long id;
     private String firstName;

@@ -1,4 +1,4 @@
-package com.example.facebook.model.repositories;
+package com.example.facebook.model.repositories.interfaces.post;
 
 import com.example.facebook.model.entities.post.PostReaction;
 import org.springframework.data.jpa.repository.JpaRepository;
