@@ -4,17 +4,30 @@ import com.example.facebook.model.dtos.ErrorDTO;
 import com.example.facebook.model.exceptions.BadRequestException;
 import com.example.facebook.model.exceptions.NotFoundExceptions;
 import com.example.facebook.model.exceptions.UnauthorizedException;
-import com.example.facebook.service.AbstractService;
+import com.example.facebook.service.CommentService;
+import com.example.facebook.service.PostService;
+import com.example.facebook.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import javax.servlet.http.HttpSession;
 import java.time.LocalDateTime;
 
-public abstract class AbstractController extends AbstractService {
+public abstract class AbstractController{
     public static final String LOGGED = "logged";
     public static final String USER_ID = "user_id";
     public static final String REMOTE_ADDRESS = "remote_address";
+    public static final String SHOULD_BE_LOGOUT = "You should be logout. Session terminated.";
+    public static final String ALREADY_LOGGED = "The user was already logged in. Session terminated.";
+    public static final String YOU_HAVE_TO_LOG_IN_FIRST = "You have to log in first";
+
+    @Autowired
+    protected UserService userService;
+    @Autowired
+    protected CommentService commentService;
+    @Autowired
+    protected PostService postService;
 
     @ExceptionHandler(value = BadRequestException.class)
     @ResponseStatus(code = HttpStatus.BAD_REQUEST)
@@ -55,10 +68,21 @@ public abstract class AbstractController extends AbstractService {
         session.setAttribute(REMOTE_ADDRESS, userIp);
     }
 
-    public long getUserById(HttpSession session){
+    public long getUserByID(HttpSession session){
         if (session.getAttribute(USER_ID) == null){
-            throw new UnauthorizedException("You have log in first");
+            throw new UnauthorizedException(YOU_HAVE_TO_LOG_IN_FIRST);
         }
         return (long) session.getAttribute(USER_ID);
+    }
+
+    public void terminateSession(HttpSession session, String message){
+        if (session.getAttribute(LOGGED) != null && (boolean) session.getAttribute(LOGGED)) {
+            session.invalidate();
+            throw new UnauthorizedException(message);
+        }
+    }
+
+    public void terminateSession(HttpSession session){
+        session.invalidate();
     }
 }

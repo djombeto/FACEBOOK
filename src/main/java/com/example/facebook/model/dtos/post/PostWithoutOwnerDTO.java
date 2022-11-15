@@ -1,6 +1,6 @@
 package com.example.facebook.model.dtos.post;
 
-import com.example.facebook.model.dtos.comment.CreateCommentDTO;
+import com.example.facebook.model.dtos.comment.CommentWithOwnerDTO;
 import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,7 +20,7 @@ public class PostWithoutOwnerDTO {
     private LocalDateTime updatedAt;
     private String privacy;
 
-    private List<CreateCommentDTO> comments;
+    private List<CommentWithOwnerDTO> comments;
 
 
 

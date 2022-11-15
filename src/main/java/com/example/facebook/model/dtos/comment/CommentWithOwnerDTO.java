@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
-public class CreateCommentDTO {
+public class CommentWithOwnerDTO {
 
     public static final String TITLE = "COMMENT";
 
@@ -16,17 +16,17 @@ public class CreateCommentDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    private List<CreateCommentDTO> comments;
+    private List<CommentWithOwnerDTO> comments;
 
-    public CreateCommentDTO(){
+    public CommentWithOwnerDTO(){
 
     }
 
-    public CreateCommentDTO(String ownerName,
-                            long commentId,
-                            String content,
-                            LocalDateTime createdAt,
-                            LocalDateTime updatedAt){
+    public CommentWithOwnerDTO(String ownerName,
+                               long commentId,
+                               String content,
+                               LocalDateTime createdAt,
+                               LocalDateTime updatedAt){
         this.title = TITLE;
         this.ownerName = ownerName;
         this.commentId = commentId;

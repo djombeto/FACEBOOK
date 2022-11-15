@@ -1,6 +1,7 @@
 package com.example.facebook.service;
 
 import com.example.facebook.model.dtos.post.CreatePostDTO;
+import com.example.facebook.model.dtos.post.DeletePostResponseDTO;
 import com.example.facebook.model.dtos.post.EditPostDTO;
 import com.example.facebook.model.dtos.user.NewsFeedDTO;
 import com.example.facebook.model.entities.post.Post;
@@ -9,14 +10,20 @@ import com.example.facebook.model.entities.post.PostReaction;
 import com.example.facebook.model.entities.post.PostReactionsKey;
 import com.example.facebook.model.exceptions.BadRequestException;
 import com.example.facebook.model.exceptions.UnauthorizedException;
-import com.example.facebook.model.repositories.AbstractRepositories;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
 import java.util.Arrays;
 
 @Service
-public class PostService extends AbstractRepositories {
+public class PostService extends AbstractService {
+
+    public static final String CANNOT_EDIT_POST = "You cannot edit post which is not yours";
+    public static final String CANNOT_DELETE_POST = "You cannot delete post which is not yours";
+    public static final String CONTENT_IS_BLANK = "Content is blank";
+    public static final String INVALID_REACTION = "Invalid reaction";
+    public static final String DELETE_POST = "Post deleting successful";
 
     public NewsFeedDTO createPost(long userId, CreatePostDTO dto) {
         dto.setCreatedAt(LocalDateTime.now());
@@ -25,73 +32,79 @@ public class PostService extends AbstractRepositories {
         Post post = modelMapper.map(dto, Post.class);
         post.setOwner(user);
         postRepository.save(post);
-        return giveNewsfeedForUser(user);
+        return showNewsFeed(user);
     }
 
     public NewsFeedDTO editPost(long userId, long postId, EditPostDTO dto) {
         User user = verifyUser(userId);
         Post post = verifyPost(postId);
         if (post.getOwner() != user) {
-            throw new UnauthorizedException("You cannot edit post which is not yours");
+            throw new UnauthorizedException(CANNOT_EDIT_POST);
         }
-        if (dto.getContent().isBlank() || dto.getContent() == null) {
-            throw new BadRequestException("Content is blank");
+        if (dto.getContent() == null || dto.getContent().isBlank()) {
+            throw new BadRequestException(CONTENT_IS_BLANK);
         }
         post.setContent(dto.getContent());
         post.setPrivacy(dto.getPrivacy());
         post.setUpdatedAt(LocalDateTime.now());
         postRepository.save(post);
-        return giveNewsfeedForUser(user);
+        return showNewsFeed(user);
     }
 
     @Transactional
-    public void deletePost(long userId, long postId) {
+    public DeletePostResponseDTO deletePost(long userId, long postId) {
         User user = verifyUser(userId);
         Post post = verifyPost(postId);
-        if (post.getOwner() != user) {
-            throw new UnauthorizedException("You cannot delete post which is not yours");
+        User owner = post.getOwner();
+        if (owner != user) {
+            throw new UnauthorizedException(CANNOT_DELETE_POST);
         }
-        jdbcTemplate.execute("DELETE FROM comments " +
-                "WHERE post_id = " + postId);
-
-        jdbcTemplate.execute("DELETE FROM posts " +
-                "WHERE id = " + postId + " " +
-                "AND owner_id = " + userId);
+        commentDAO.deleteCommentsForPostID(postId);
+        postDAO.deletePostForOwnerID(postId, owner.getId());
+        return new DeletePostResponseDTO(LocalDateTime.now(), DELETE_POST);
     }
 
     public NewsFeedDTO reactToPostOrDislike(long userId, long postId, String reaction) {
-        if (Arrays.stream(ReactionTypes.values())
-                .noneMatch(reactionTypes -> reactionTypes.toString().equals(reaction))) {
-            throw new BadRequestException("Invalid reaction");
+        if (isWrongReaction(reaction)) {
+            throw new BadRequestException(INVALID_REACTION);
         }
-       User user = verifyUser(userId);
-       Post post = verifyPost(postId);
-       PostReactionsKey postReactionsKey = new PostReactionsKey();
-       PostReaction postReaction = new PostReaction();
-       if (isFirstReact(userId, postId, "post_reactions", "post_id")) {
-           postReactionsKey.setUserId(userId);
-           postReactionsKey.setPostId(postId);
-           postReaction.setUser(user);
-           postReaction.setPost(post);
-           postReaction.setReactionType(reaction);
-           postReaction.setId(postReactionsKey);
-           postReactionRepository.save(postReaction);
-       }
-       else if (!isFirstReact(userId,postId,"post_reactions", "post_id") &&
-               !giveReactionType(userId,postId,"post_reactions", "post_id")
-                                                   .get(0)
-                                                   .getReactionType()
-                                                   .equals(reaction)) {
+        User user = verifyUser(userId);
+        Post post = verifyPost(postId);
+        PostReactionsKey postReactionsKey = new PostReactionsKey();
+        PostReaction postReaction = new PostReaction();
 
-           jdbcTemplate.update("UPDATE post_reactions " +
-                                       "SET reaction_type = '" + reaction + "' " +
-                                       "WHERE user_id = " + userId + " " +
-                                       "AND post_id = " + postId);
-       } else {
-           jdbcTemplate.execute("DELETE FROM post_reactions " +
-                                     "WHERE user_id = " + userId + " " +
-                                     "AND post_id = " + postId);
-       }
-        return giveNewsfeedForUser(user);
+        if (isFirstReaction(userId, postId)) {
+            reactToPost(userId, postId, reaction, user, post, postReactionsKey, postReaction);
+        } else if (isReactionTypesAreDifferent(userId, postId, reaction)) {
+            postDAO.updatePostReactionType(userId, postId, reaction);
+        } else {
+            postDAO.deletePostReactionType(userId, postId);
+        }
+        return showNewsFeed(user);
+    }
+
+    private boolean isWrongReaction(String reaction) {
+        return (Arrays.stream(ReactionTypes.values())
+                .noneMatch(reactionTypes -> reactionTypes.toString().equals(reaction)));
+    }
+
+    private void reactToPost(long userId, long postId, String reaction, User user, Post post,
+                             PostReactionsKey postReactionsKey, PostReaction postReaction) {
+        postReactionsKey.setUserId(userId);
+        postReactionsKey.setPostId(postId);
+        postReaction.setUser(user);
+        postReaction.setPost(post);
+        postReaction.setReactionType(reaction);
+        postReaction.setId(postReactionsKey);
+        postReactionRepository.save(postReaction);
+    }
+
+    private boolean isFirstReaction(long userId, long postId) {
+        return postDAO.getPostReactionType(userId, postId).size() == 0;
+    }
+
+    private boolean isReactionTypesAreDifferent(long userId, long postId, String reaction) {
+        String oldReaction = postDAO.getPostReactionType(userId, postId).get(0).getReactionType();
+        return !oldReaction.equals(reaction);
     }
 }

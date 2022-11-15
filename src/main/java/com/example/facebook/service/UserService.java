@@ -1,20 +1,32 @@
 package com.example.facebook.service;
 
+import com.example.facebook.model.daos.UserDAO;
 import com.example.facebook.model.dtos.user.*;
 import com.example.facebook.model.entities.user.User;
 import com.example.facebook.model.exceptions.BadRequestException;
 import com.example.facebook.model.exceptions.UnauthorizedException;
-import com.example.facebook.model.repositories.AbstractRepositories;
 import com.example.facebook.model.utility.RegexValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
-public class UserService extends AbstractRepositories {
+public class UserService extends AbstractService {
+
+    public static final String CANNOT_ADD = "You cannot add yourself";
+    public static final String CANNOT_FOLLOW = "You cannot follow yourself";
+    public static final String CANNOT_UNFOLLOW = "You cannot unfollow yourself";
+    public static final String CANNOT_DELETE = "You cannot delete yourself";
+    public static final String CHANGE_PASSWORD = "Changing password is complete";
+    public static final String DELETE_PROFILE = "Your profile is deleted";
+    public static final String INVALID_EMAIL_OR_PASSWORD = "Invalid email or password";
+    public static final String INVALID_PASSWORD = "Invalid password";
+    private static final String UNEXISTEND_FRIEND = "You don't have a friend with this id";
+    private static final String ALREADY_FRIENDS = "You are already friends";
+    private static final String ALREADY_FOLLOW = "You already follow this user";
 
     public UserWithoutPassDTO register(RegisterDTO dto) {
         validateFirsLastName(dto);
@@ -33,125 +45,111 @@ public class UserService extends AbstractRepositories {
         String email = dto.getEmail();
         String password = dto.getPasswordHash();
         User user = userRepository.findByEmail(email).orElseThrow(() -> {
-            throw new UnauthorizedException("Invalid email or password");
+            throw new UnauthorizedException(INVALID_EMAIL_OR_PASSWORD);
         });
         if (!encoder.matches(password, user.getPasswordHash())) {
-            throw new UnauthorizedException("Invalid email or password");
+            throw new UnauthorizedException(INVALID_EMAIL_OR_PASSWORD);
         }
-        return giveNewsfeedForUser(user);
+        return showNewsFeed(user);
     }
 
     public NewsFeedDTO newsFeed(long userId) {
         User user = verifyUser(userId);
-        return giveNewsfeedForUser(user);
+        return showNewsFeed(user);
     }
 
     public UserProfileDTO myProfile(long userId) {
         User user = verifyUser(userId);
-        return givePostsForUser(user);
+        return showMyPosts(user);
+    }
+
+    public List<UserWithoutPassDTO> friendsSuggestions(long userId) {
+        verifyUser(userId);
+        return userDAO.getFriendsOfMyFriends(userId);
     }
 
     public EditProfileDTO editInfo(EditProfileDTO dto, long userId) {
+        User user = verifyUser(userId);
         validateFirsLastName(dto);
         validateEmail(dto);
         validateMobileNumber(dto);
-        User user = verifyUser(userId);
-        user.setFirstName(dto.getFirstName());
-        user.setLastName(dto.getLastName());
-        user.setEmail(dto.getEmail());
-        user.setMobileNumber(dto.getMobileNumber());
-        user.setGender(dto.getGender());
+        setNewValues(dto, user);
         userRepository.save(user);
         return modelMapper.map(user, EditProfileDTO.class);
     }
 
-    public void editPassword(long userId, EditPasswordDTO dto) {
+    public ChangePasswordResponseDTO editPassword(long userId, EditPasswordDTO dto) {
         User user = verifyUser(userId);
         if (!encoder.matches(dto.getOldPassword(), user.getPasswordHash())) {
-            throw new UnauthorizedException("Invalid password");
+            throw new UnauthorizedException(INVALID_PASSWORD);
         }
         validatePassword(dto);
         user.setPasswordHash(encoder.encode(dto.getPasswordHash()));
         userRepository.save(user);
+        return new ChangePasswordResponseDTO(LocalDateTime.now(), CHANGE_PASSWORD);
     }
 
     @Transactional
-    public void deleteProfile(long userId) {
-        User user = verifyUser(userId);
-        jdbcTemplate.execute("DELETE FROM friends " +
-                                 "WHERE user_id = " + userId + " " +
-                                 "AND friend_id = " + userId);
-
-        jdbcTemplate.execute("DELETE FROM followers " +
-                                 "WHERE user_id = " + userId + " " +
-                                 "AND follower_id = " + userId);
-
-        userRepository.deleteById(userId);
+    public ChangePasswordResponseDTO deleteProfile(long userID) {
+        verifyUser(userID);
+        userDAO.deleteById(userID, userID, UserDAO.SQL_DELETE_MY_PROFILE_FRIENDS);
+        userDAO.deleteById(userID, userID, UserDAO.SQL_DELETE_MY_PROFILE_FOLLOWERS);
+        userRepository.deleteById(userID);
+        return new ChangePasswordResponseDTO(LocalDateTime.now(), DELETE_PROFILE);
     }
 
-    public FriendDTO addFriend(long userId, long friendId) {
-        compareBothId(userId, friendId, "You cannot add yourself");
+    public UserWithoutPassDTO addFriend(long userId, long friendId) {
+        compareBothId(userId, friendId, CANNOT_ADD);
         User user = verifyUser(userId);
         User friend = verifyUser(friendId);
-        if (!jdbcTemplate.query("SELECT * FROM friends " +
-                                    "WHERE user_id = " + userId + " " +
-                                    "AND friend_id = " + friendId,
-                                (rs, rowNum) -> new FriendDTO(
-                                     rs.getLong("friend_id"))).isEmpty()
-        ){
-            throw new BadRequestException("You are already friends");
+        if (userDAO.getFriendById(userId, friendId).size() > 0){
+            throw new BadRequestException(ALREADY_FRIENDS);
         }
         user.addFriend(friend);
         friend.addFriend(user);
         followFriend(userId,friendId);
         followFriend(friendId, userId);
         userRepository.save(user);
-        return modelMapper.map(friend, FriendDTO.class);
+        return modelMapper.map(friend, UserWithoutPassDTO.class);
     }
+
     @Transactional
-    public void deleteFriend(long userId, long friendId) {
-        compareBothId(userId, friendId,"You cannot delete yourself");
-        if (jdbcTemplate.query("SELECT * FROM friends " +
-                                   "WHERE user_id = " + userId + " " +
-                                   "AND friend_id = " + friendId,
-                                (rs, rowNum) -> new FriendDTO(
-                                    rs.getLong("friend_id"))).isEmpty()
-        ) {
-            throw new BadRequestException("You don't have a friend with this id");
-        } else {
-            jdbcTemplate.execute("DELETE FROM friends " +
-                                     "WHERE user_id = " + userId + " " +
-                                     "AND friend_id = " + friendId);
-
-            jdbcTemplate.execute("DELETE FROM friends " +
-                                     "WHERE user_id = " + friendId + " " +
-                                     "AND friend_id = " + userId);
-
+    public UserWithoutPassDTO deleteFriend(long userId, long friendId) {
+        compareBothId(userId, friendId, CANNOT_DELETE);
+        if (userDAO.getFriendById(userId, friendId).isEmpty()){
+            throw new BadRequestException(UNEXISTEND_FRIEND);
+        }
+        else {
+            userDAO.deleteById(userId, friendId, UserDAO.SQL_DELETE_FRIEND_BY_ID);
+            userDAO.deleteById(friendId, userId, UserDAO.SQL_DELETE_FRIEND_BY_ID);
             unfollowFriend(userId,friendId);
             unfollowFriend(friendId, userId);
+            return modelMapper.map(verifyUser(friendId), UserWithoutPassDTO.class);
         }
     }
 
-    public FriendDTO followFriend(long userId, long friendId) {
-        compareBothId(userId, friendId, "You cannot follow yourself");
+    public UserWithoutPassDTO followFriend(long userId, long friendId) {
+        compareBothId(userId, friendId, CANNOT_FOLLOW);
+        if (userDAO.getFollowerById(userId, friendId).size() > 0){
+            throw new BadRequestException(ALREADY_FOLLOW);
+        }
         User user = verifyUser(userId);
         User friend = verifyUser(friendId);
         friend.addFollower(user);
         userRepository.save(user);
-        return modelMapper.map(friend, FriendDTO.class);
+        return modelMapper.map(friend, UserWithoutPassDTO.class);
     }
 
-    public void unfollowFriend(long userId, long friendId) {
-        compareBothId(userId, friendId, "You cannot unfollow yourself");
+    public UserWithoutPassDTO unfollowFriend(long userId, long friendId) {
+        compareBothId(userId, friendId, CANNOT_UNFOLLOW);
         User user = verifyUser(userId);
         User friend = verifyUser(friendId);
         friend.getMyFollowers().remove(user);
-        jdbcTemplate.execute("DELETE FROM followers " +
-                                 "WHERE user_id = " + friendId + " " +
-                                 "AND follower_id = " +  userId);
+        userDAO.deleteFollowerById(friendId, userId);
+        return modelMapper.map(verifyUser(friendId), UserWithoutPassDTO.class);
     }
 
-    public List<FriendDTO> findFriendsByName(long userId, String name) {
+    public List<UserWithoutPassDTO> findFriendsByName(long userId, String name) {
         verifyUser(userId);
         String firstName = name;
         String lastName = name;
@@ -159,39 +157,23 @@ public class UserService extends AbstractRepositories {
         if (names.length > 1) {
             firstName = names[0];
             lastName = names[1];
-            return jdbcTemplate.query(
-                    "SELECT u.id, u.first_name, u.last_name " +
-                            "FROM users AS u " +
-                            "JOIN friends AS f ON (u.id = f.friend_id) " +
-                            "WHERE f.user_id = " + userId + " " +
-                            "AND u.first_name LIKE '" + firstName + "%'" +
-                            "AND u.last_name LIKE '" + lastName + "%'",
-                    (rs, rowNum) -> new FriendDTO(
-                            rs.getLong("id"),
-                            rs.getString("first_name"),
-                            rs.getString("last_name")));
+           return userDAO.getUserByFullName(firstName, lastName);
         } else {
-            return jdbcTemplate.query(
-                    "SELECT u.id, u.first_name, u.last_name " +
-                            "FROM users AS u " +
-                            "JOIN friends AS f ON (u.id = f.friend_id) " +
-                            "WHERE f.user_id = " + userId + " " +
-                            "AND u.first_name LIKE '" + firstName + "%'" +
-                            "OR u.last_name LIKE '" + lastName + "%'",
-                    (rs, rowNum) -> new FriendDTO(
-                            rs.getLong("id"),
-                            rs.getString("first_name"),
-                            rs.getString("last_name")));
+           return userDAO.getUserByFirstOrLastName(firstName, lastName);
         }
     }
 
-    public List<FriendDTO> findAllFriends(long userId) {
-        User user = verifyUser(userId);
-        List<User> users = user.getMyFriends();
-        return users
-                .stream()
-                .map(u -> modelMapper.map(u, FriendDTO.class))
-                .collect(Collectors.toList());
+    public List<UserWithoutPassDTO> findAllFriends(long userId) {
+        verifyUser(userId);
+        return userDAO.getMyAllFriends(userId);
+    }
+
+    private static void setNewValues(EditProfileDTO dto, User user) {
+        user.setFirstName(dto.getFirstName());
+        user.setLastName(dto.getLastName());
+        user.setEmail(dto.getEmail());
+        user.setMobileNumber(dto.getMobileNumber());
+        user.setGender(dto.getGender());
     }
 
     private void validateFirsLastName(AbstractMasterDTO dto){
