@@ -24,6 +24,8 @@ public class Post {
     private LocalDateTime updatedAt;
     @Column
     private String privacy;
+    @Column
+    private String clipUri;
     @ManyToOne
     @JoinColumn(name = "owner_id")
     private User owner;
@@ -33,4 +35,7 @@ public class Post {
 
     @OneToMany(mappedBy = "post")
     private List<PostReaction> PostLikes;
+
+    @OneToMany(mappedBy = "post")
+    private List<PostImage> postImages;
 }

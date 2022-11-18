@@ -2,7 +2,7 @@ package com.example.facebook.controller;
 
 import com.example.facebook.model.dtos.ErrorDTO;
 import com.example.facebook.model.exceptions.BadRequestException;
-import com.example.facebook.model.exceptions.NotFoundExceptions;
+import com.example.facebook.model.exceptions.NotFoundException;
 import com.example.facebook.model.exceptions.UnauthorizedException;
 import com.example.facebook.service.CommentService;
 import com.example.facebook.service.PostService;
@@ -35,7 +35,7 @@ public abstract class AbstractController{
         return buildErrorInfo(ex, HttpStatus.BAD_REQUEST);
     }
 
-    @ExceptionHandler(value = NotFoundExceptions.class)
+    @ExceptionHandler(value = NotFoundException.class)
     @ResponseStatus(code = HttpStatus.NOT_FOUND)
     public ErrorDTO handleNotFoundException(Exception ex) {
         return buildErrorInfo(ex, HttpStatus.NOT_FOUND);
@@ -62,27 +62,27 @@ public abstract class AbstractController{
         return dto;
     }
 
-    public void logUserAndSetAttribute(HttpSession session, long userId, String userIp) {
+    protected void logUserAndSetAttribute(HttpSession session, long userId, String userIp) {
         session.setAttribute(LOGGED, true);
         session.setAttribute(USER_ID, userId);
         session.setAttribute(REMOTE_ADDRESS, userIp);
     }
 
-    public long getUserByID(HttpSession session){
+    protected long getUserByID(HttpSession session){
         if (session.getAttribute(USER_ID) == null){
             throw new UnauthorizedException(YOU_HAVE_TO_LOG_IN_FIRST);
         }
         return (long) session.getAttribute(USER_ID);
     }
 
-    public void terminateSession(HttpSession session, String message){
+    protected void terminateSession(HttpSession session, String message){
         if (session.getAttribute(LOGGED) != null && (boolean) session.getAttribute(LOGGED)) {
             session.invalidate();
             throw new UnauthorizedException(message);
         }
     }
 
-    public void terminateSession(HttpSession session){
+    protected void terminateSession(HttpSession session){
         session.invalidate();
     }
 }

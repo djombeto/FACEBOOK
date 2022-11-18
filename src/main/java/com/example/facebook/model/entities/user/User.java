@@ -30,6 +30,8 @@ public class User {
     private String passwordHash;
     @Column
     private String gender;
+    @Column
+    private String userPhotoUri;
 
     @OneToMany(mappedBy = "owner")
     private List<Comment> comments;
