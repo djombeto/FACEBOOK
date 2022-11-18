@@ -44,6 +44,10 @@ public class User {
             inverseJoinColumns = @JoinColumn(name = "friend_id"))
     private List<User> myFriends;
 
+    public void addFriend(User friend){
+        myFriends.add(friend);
+    }
+
     @ManyToMany
     @JoinTable(
             name = "followers",
@@ -51,19 +55,24 @@ public class User {
             inverseJoinColumns = @JoinColumn(name = "follower_id"))
     private List<User> myFollowers;
 
+    public void addFollower(User follower){
+        myFollowers.add(follower);
+    }
+
+    @ManyToMany
+    @JoinTable(
+            name = "friend_requests",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "requester_id"))
+    private List<User> myRequests;
+
+    public void addRequester(User requester){
+        myRequests.add(requester);
+    }
 
     @OneToMany(mappedBy = "user")
     List<PostReaction> postLikes;
 
     @OneToMany(mappedBy = "user")
     List<CommentReaction> commentLikes;
-
-    public void addFriend(User friend){
-        myFriends.add(friend);
-    }
-
-    public void addFollower(User follower){
-        myFollowers.add(follower);
-    }
-
 }

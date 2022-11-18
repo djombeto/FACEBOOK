@@ -21,10 +21,12 @@ public class UserController extends AbstractController {
     }
 
     @PostMapping("/users/login")
-    public ResponseEntity<NewsFeedDTO> login(HttpServletRequest req, @RequestBody LoginDTO dto) {
+    public ResponseEntity<NewsFeedDTO> login(HttpServletRequest req, @RequestBody LoginDTO dto,
+                                                                     @RequestParam long pageNumber,
+                                                                     @RequestParam long rowsNumber) {
         HttpSession session = req.getSession();
         terminateSession(session,ALREADY_LOGGED);
-        NewsFeedDTO newsFeedDTO = userService.login(dto);
+        NewsFeedDTO newsFeedDTO = userService.login(dto, pageNumber, rowsNumber);
         long userID = newsFeedDTO.getId();
         String userIP = req.getRemoteAddr();
         logUserAndSetAttribute(session, userID, userIP);
@@ -37,34 +39,45 @@ public class UserController extends AbstractController {
     }
 
 
-    @GetMapping("/users/newsfeed")
-    public ResponseEntity<NewsFeedDTO> newsFeed(HttpSession session) {
+    @GetMapping("/users/news-feed")
+    public ResponseEntity<NewsFeedDTO> newsFeed(@RequestParam long pageNumber,
+                                                @RequestParam long rowsNumber,
+                                                        HttpSession session) {
         long userID = getUserByID(session);
-        return new ResponseEntity<>(userService.newsFeed(userID), OK);
+        return new ResponseEntity<>(userService.newsFeed(userID, pageNumber, rowsNumber), OK);
     }
 
-    @GetMapping("/users/myProfile")
-    public ResponseEntity<UserProfileDTO> myProfile(HttpSession session) {
+    @GetMapping("/users/my-profile")
+    public ResponseEntity<UserProfileDTO> myProfile(@RequestParam long pageNumber,
+                                                    @RequestParam long rowsNumber,
+                                                            HttpSession session) {
         long userID = getUserByID(session);
-        return new ResponseEntity<>(userService.myProfile(userID), OK);
+        return new ResponseEntity<>(userService.myProfile(userID, pageNumber, rowsNumber), OK);
     }
 
     @GetMapping("/users/suggestions")
-    public ResponseEntity<List<UserWithoutPassDTO>> friendsSuggestions(HttpSession session){
+    public ResponseEntity<List<UserWithoutPassDTO>> friendsSuggestions(@RequestParam long pageNumber,
+                                                                       @RequestParam long rowsNumber,
+                                                                               HttpSession session) {
         long userID = getUserByID(session);
-        return new ResponseEntity<>(userService.friendsSuggestions(userID), OK);
+        return new ResponseEntity<>(userService.friendsSuggestions(userID, pageNumber, rowsNumber), OK);
     }
 
     @GetMapping("/users/{name}")
-    public ResponseEntity<List<UserWithoutPassDTO>> findFriendsByName(HttpSession session, @PathVariable String name) {
+    public ResponseEntity<List<UserWithoutPassDTO>> findFriendsByName(@PathVariable String name,
+                                                                      @RequestParam long pageNumber,
+                                                                      @RequestParam long rowsNumber,
+                                                                               HttpSession session) {
         long userID = getUserByID(session);
-        return new ResponseEntity<>(userService.findFriendsByName(userID, name), OK);
+        return new ResponseEntity<>(userService.findFriendsByName(userID, name, pageNumber, rowsNumber), OK);
     }
 
     @GetMapping("/users")
-    public ResponseEntity<List<UserWithoutPassDTO>> findAllFriends(HttpSession session) {
+    public ResponseEntity<List<UserWithoutPassDTO>> findAllFriends(@RequestParam long pageNumber,
+                                                                   @RequestParam long rowsNumber,
+                                                                               HttpSession session) {
         long userID = getUserByID(session);
-        return new ResponseEntity<>(userService.findAllFriends(userID), OK);
+        return new ResponseEntity<>(userService.findAllFriends(userID, pageNumber, rowsNumber), OK);
     }
 
     @DeleteMapping("/users")
@@ -75,41 +88,59 @@ public class UserController extends AbstractController {
     }
 
     @PutMapping("/users/info")
-    public ResponseEntity<EditProfileDTO> editInfo(HttpSession session, @RequestBody EditProfileDTO dto) {
+    public ResponseEntity<EditProfileDTO> editInfo(@RequestBody EditProfileDTO dto, HttpSession session) {
         long userID = getUserByID(session);
         return new ResponseEntity<>(userService.editInfo(dto, userID), OK);
     }
 
     @PutMapping("/users/password")
-    public ResponseEntity<ChangePasswordResponseDTO> editPassword(HttpSession session,
-                                                                  @RequestBody EditPasswordDTO dto) {
+    public ResponseEntity<ChangePasswordResponseDTO> editPassword(@RequestBody EditPasswordDTO dto,
+                                                                               HttpSession session) {
         long userID = getUserByID(session);
         terminateSession(session);
         return new ResponseEntity<>(userService.editPassword(userID, dto), OK);
     }
 
     @PostMapping("users/friends/{fid}")
-    public ResponseEntity<UserWithoutPassDTO> addFriend(HttpSession session, @PathVariable (name = "fid") long friendID) {
+    public ResponseEntity<UserWithoutPassDTO> sendFriendRequest(@PathVariable (name = "fid") long friendID,
+                                                                               HttpSession session) {
         long userID = getUserByID(session);
-        return new ResponseEntity<>(userService.addFriend(userID, friendID), OK);
+        return new ResponseEntity<>(userService.sendFriendRequest(userID, friendID), OK);
+    }
+
+    @GetMapping("/users/requests")
+    public ResponseEntity<List<UserWithoutPassDTO>> findAllFriendRequests(@RequestParam long pageNumber,
+                                                                          @RequestParam long rowsNumber,
+                                                                               HttpSession session) {
+        long userID = getUserByID(session);
+        return new ResponseEntity<>(userService.findAllFriendRequests(userID, pageNumber, rowsNumber), OK);
+    }
+
+    @PostMapping("/users/{fid}/{confirm}")
+    public ResponseEntity<UserWithoutPassDTO> confirmFriendRequest(@PathVariable (name = "fid") long friendId,
+                                                                   @PathVariable  String confirm,
+                                                                                HttpSession session) {
+        long userID = getUserByID(session);
+        return new ResponseEntity<>(userService.confirmFriendRequest(userID, friendId, confirm), OK);
     }
 
     @DeleteMapping("users/friends/{fid}")
-    public ResponseEntity<UserWithoutPassDTO> deleteFriend(HttpSession session, @PathVariable (name = "fid")
-                                                                                              long friendID) {
+    public ResponseEntity<UserWithoutPassDTO> deleteFriend(@PathVariable (name = "fid") long friendID,
+                                                                                HttpSession session) {
         long userID = getUserByID(session);
         return new ResponseEntity<>(userService.deleteFriend(userID, friendID), OK);
     }
 
     @PostMapping("users/follow/{fid}")
-    public ResponseEntity<UserWithoutPassDTO> followFriend(HttpSession session, @PathVariable (name = "fid") long friendID) {
+    public ResponseEntity<UserWithoutPassDTO> followFriend(@PathVariable (name = "fid") long friendID,
+                                                                                HttpSession session) {
         long userID = getUserByID(session);
         return new ResponseEntity<>(userService.followFriend(userID, friendID), OK);
     }
 
     @PostMapping("users/unfollow/{fid}")
-    public ResponseEntity<UserWithoutPassDTO> unfollowFriend(HttpSession session, @PathVariable (name = "fid")
-                                                                                                 long friendID) {
+    public ResponseEntity<UserWithoutPassDTO> unfollowFriend(@PathVariable (name = "fid") long friendID,
+                                                                                 HttpSession session) {
         long userID = getUserByID(session);
         return new ResponseEntity<>(userService.unfollowFriend(userID, friendID), OK);
     }

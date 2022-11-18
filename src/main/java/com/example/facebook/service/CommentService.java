@@ -24,7 +24,7 @@ public class CommentService extends AbstractService {
     public static final String CONTENT_IS_BLANK = "Content is blank";
     public static final String INVALID_REACTION_TYPE = "Invalid reaction type";
 
-    public NewsFeedDTO commentPost(long userId, long postId, CommentWithOwnerDTO dto) {
+    public NewsFeedDTO commentPost(long userId, long postId, CommentWithOwnerDTO dto, long pageNumber, long rowsNumber){
         User user = verifyUser(userId);
         Post post = verifyPost(postId);
         dto.setCreatedAt(LocalDateTime.now());
@@ -33,7 +33,7 @@ public class CommentService extends AbstractService {
         comment.setOwner(user);
         comment.setPost(post);
         commentRepository.save(comment);
-        return showNewsFeed(user);
+        return showNewsFeed(user, pageNumber, rowsNumber);
     }
 
     public DeleteCommentResponseDTO deleteComment(long userId, long commentId) {
@@ -47,7 +47,7 @@ public class CommentService extends AbstractService {
         return new DeleteCommentResponseDTO(LocalDateTime.now(), DELETE_COMMENT);
     }
 
-    public NewsFeedDTO editComment(long userId, long commendId, EditCommentDTO dto) {
+    public NewsFeedDTO editComment(long userId, long commendId, EditCommentDTO dto, long pageNumber, long rowsNumber) {
         User user = verifyUser(userId);
         Comment comment = verifyComment(commendId);
         if (comment.getOwner() != user) {
@@ -59,10 +59,11 @@ public class CommentService extends AbstractService {
         comment.setContent(dto.getContent());
         comment.setUpdatedAt(LocalDateTime.now());
         commentRepository.save(comment);
-        return showNewsFeed(user);
+        return showNewsFeed(user, pageNumber, rowsNumber);
     }
 
-    public NewsFeedDTO reactToCommentOrDislike(long userId, long commentId, String reaction) {
+    public NewsFeedDTO reactToCommentOrDislike(long userId, long commentId, String reaction, long pageNumber,
+                                                                                             long rowsNumber) {
         if (isWrongReaction(reaction)) {
             throw new BadRequestException(INVALID_REACTION_TYPE);
         }
@@ -73,12 +74,12 @@ public class CommentService extends AbstractService {
 
         if (isFirstReaction(userId, commentId)) {
             reactToComment(userId, commentId, reaction, user, comment, commentReactionsKey, commentReaction);
-        } else if (isReactionTypesAreDifferent(userId, commentId, reaction)) {
+        } else if (reactionTypesAreDifferent(userId, commentId, reaction)) {
             commentDAO.updatePostReactionType(userId, commentId, reaction);
         } else {
             commentDAO.deleteCommentReaction(userId, commentId);
         }
-        return showNewsFeed(user);
+        return showNewsFeed(user, pageNumber, rowsNumber);
     }
 
     private boolean isWrongReaction(String reaction) {
@@ -101,7 +102,7 @@ public class CommentService extends AbstractService {
         return commentDAO.getCommentReactionType(userId, commentId).size() == 0;
     }
 
-    private boolean isReactionTypesAreDifferent(long userId, long commentId, String reaction) {
+    private boolean reactionTypesAreDifferent(long userId, long commentId, String reaction) {
         String oldReaction = commentDAO.getCommentReactionType(userId, commentId).get(0).getReactionType();
         return !oldReaction.equals(reaction);
     }

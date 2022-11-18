@@ -49,9 +49,9 @@ public abstract class AbstractService {
         LIKE, LOVE, CARE, HAHA, WOW, SAD, ANGRY
     }
 
-    public NewsFeedDTO showNewsFeed(User user){
+    public NewsFeedDTO showNewsFeed(User user, long pageNumber, long rowsNumber){
         NewsFeedDTO newsFeedDTO = modelMapper.map(user, NewsFeedDTO.class);
-        newsFeedDTO.setNewsFeed(postDAO.getNewsFeedForUserID(user.getId()));
+        newsFeedDTO.setNewsFeed(postDAO.getNewsFeedForUserID(user.getId(), pageNumber, rowsNumber));
         newsFeedDTO.getNewsFeed().forEach(e -> {
             long postId = e.getPostId();
             e.setComments(commentDAO.getCommentsForPostID(postId));
@@ -59,9 +59,9 @@ public abstract class AbstractService {
         return newsFeedDTO;
     }
 
-    public UserProfileDTO showMyPosts(User user){
+    public UserProfileDTO showMyPosts(User user, long pageNumber, long rowsNumber){
         UserProfileDTO profileDTO = modelMapper.map(user, UserProfileDTO.class);
-        profileDTO.setMyPosts(postDAO.getMyPostForUserID(user.getId()));
+        profileDTO.setMyPosts(postDAO.getMyPostForUserID(user.getId(), pageNumber, rowsNumber));
         profileDTO.getMyPosts().forEach(n -> {
             long postId = n.getPostId();
             n.setComments(commentDAO.getCommentsForPostID(postId));

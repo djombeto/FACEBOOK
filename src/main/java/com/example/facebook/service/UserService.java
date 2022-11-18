@@ -8,6 +8,7 @@ import com.example.facebook.model.exceptions.UnauthorizedException;
 import com.example.facebook.model.utility.RegexValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -17,6 +18,7 @@ import java.util.List;
 public class UserService extends AbstractService {
 
     public static final String CANNOT_ADD = "You cannot add yourself";
+    public static final String CANNOT_REQUEST = "You cannot send a friend request to yourself";
     public static final String CANNOT_FOLLOW = "You cannot follow yourself";
     public static final String CANNOT_UNFOLLOW = "You cannot unfollow yourself";
     public static final String CANNOT_DELETE = "You cannot delete yourself";
@@ -41,7 +43,7 @@ public class UserService extends AbstractService {
         return modelMapper.map(user, UserWithoutPassDTO.class);
     }
 
-    public NewsFeedDTO login(LoginDTO dto) {
+    public NewsFeedDTO login(LoginDTO dto, long pageNumber, long rowsNumber) {
         String email = dto.getEmail();
         String password = dto.getPasswordHash();
         User user = userRepository.findByEmail(email).orElseThrow(() -> {
@@ -50,22 +52,22 @@ public class UserService extends AbstractService {
         if (!encoder.matches(password, user.getPasswordHash())) {
             throw new UnauthorizedException(INVALID_EMAIL_OR_PASSWORD);
         }
-        return showNewsFeed(user);
+        return showNewsFeed(user, pageNumber, rowsNumber);
     }
 
-    public NewsFeedDTO newsFeed(long userId) {
+    public NewsFeedDTO newsFeed(long userId, long pageNumber, long rowsNumber) {
         User user = verifyUser(userId);
-        return showNewsFeed(user);
+        return showNewsFeed(user, pageNumber, rowsNumber);
     }
 
-    public UserProfileDTO myProfile(long userId) {
+    public UserProfileDTO myProfile(long userId, long pageNumber, long rowsNumber) {
         User user = verifyUser(userId);
-        return showMyPosts(user);
+        return showMyPosts(user, pageNumber, rowsNumber);
     }
 
-    public List<UserWithoutPassDTO> friendsSuggestions(long userId) {
+    public List<UserWithoutPassDTO> friendsSuggestions(long userId, long pageNumber, long rowsNumber) {
         verifyUser(userId);
-        return userDAO.getFriendsOfMyFriends(userId);
+        return userDAO.getFriendsOfMyFriends(userId, pageNumber, rowsNumber);
     }
 
     public EditProfileDTO editInfo(EditProfileDTO dto, long userId) {
@@ -98,31 +100,29 @@ public class UserService extends AbstractService {
         return new ChangePasswordResponseDTO(LocalDateTime.now(), DELETE_PROFILE);
     }
 
-    public UserWithoutPassDTO addFriend(long userId, long friendId) {
-        compareBothId(userId, friendId, CANNOT_ADD);
+    public UserWithoutPassDTO sendFriendRequest(long userId, long friendId) {
+        compareBothId(userId, friendId, CANNOT_REQUEST);
         User user = verifyUser(userId);
         User friend = verifyUser(friendId);
-        if (userDAO.getFriendById(userId, friendId).size() > 0){
-            throw new BadRequestException(ALREADY_FRIENDS);
+        if (thereAlreadyARequest(userId, friendId)) {
+            userDAO.cancelFriendRequest(userId, friendId);
+        } else {
+            friend.addRequester(user);
+            userRepository.save(friend);
+            return modelMapper.map(friend, UserWithoutPassDTO.class);
         }
-        user.addFriend(friend);
-        friend.addFriend(user);
-        followFriend(userId,friendId);
-        followFriend(friendId, userId);
-        userRepository.save(user);
-        return modelMapper.map(friend, UserWithoutPassDTO.class);
+        return null;
     }
 
     @Transactional
     public UserWithoutPassDTO deleteFriend(long userId, long friendId) {
         compareBothId(userId, friendId, CANNOT_DELETE);
-        if (userDAO.getFriendById(userId, friendId).isEmpty()){
+        if (userDAO.getFriendById(userId, friendId).isEmpty()) {
             throw new BadRequestException(UNEXISTEND_FRIEND);
-        }
-        else {
+        } else {
             userDAO.deleteById(userId, friendId, UserDAO.SQL_DELETE_FRIEND_BY_ID);
             userDAO.deleteById(friendId, userId, UserDAO.SQL_DELETE_FRIEND_BY_ID);
-            unfollowFriend(userId,friendId);
+            unfollowFriend(userId, friendId);
             unfollowFriend(friendId, userId);
             return modelMapper.map(verifyUser(friendId), UserWithoutPassDTO.class);
         }
@@ -130,7 +130,7 @@ public class UserService extends AbstractService {
 
     public UserWithoutPassDTO followFriend(long userId, long friendId) {
         compareBothId(userId, friendId, CANNOT_FOLLOW);
-        if (userDAO.getFollowerById(userId, friendId).size() > 0){
+        if (userDAO.getFollowerById(userId, friendId).size() > 0) {
             throw new BadRequestException(ALREADY_FOLLOW);
         }
         User user = verifyUser(userId);
@@ -149,7 +149,7 @@ public class UserService extends AbstractService {
         return modelMapper.map(verifyUser(friendId), UserWithoutPassDTO.class);
     }
 
-    public List<UserWithoutPassDTO> findFriendsByName(long userId, String name) {
+    public List<UserWithoutPassDTO> findFriendsByName(long userId, String name, long pageNumber, long rowsNumber) {
         verifyUser(userId);
         String firstName = name;
         String lastName = name;
@@ -157,15 +157,45 @@ public class UserService extends AbstractService {
         if (names.length > 1) {
             firstName = names[0];
             lastName = names[1];
-           return userDAO.getUserByFullName(firstName, lastName);
+            return userDAO.getUserByFullName(firstName, lastName, pageNumber, rowsNumber);
         } else {
-           return userDAO.getUserByFirstOrLastName(firstName, lastName);
+            return userDAO.getUserByFirstOrLastName(firstName, lastName, pageNumber, rowsNumber);
         }
     }
 
-    public List<UserWithoutPassDTO> findAllFriends(long userId) {
+    @Transactional
+    public UserWithoutPassDTO confirmFriendRequest(long userId, long friendId, String confirm) {
+        compareBothId(userId, friendId, CANNOT_ADD);
+        User user = verifyUser(userId);
+        User friend = verifyUser(friendId);
+        if (youAreAlreadyFriends(userId, friendId)){
+            throw new BadRequestException(ALREADY_FRIENDS);
+        }
+        switch (confirm.toUpperCase()){
+            case "CONFIRM":
+                user.addFriend(friend);
+                friend.addFriend(user);
+                followFriend(userId, friendId);
+                followFriend(friendId, userId);
+                userDAO.removeFriendRequest(userId, friendId);
+                userRepository.save(user);
+                return modelMapper.map(friend, UserWithoutPassDTO.class);
+            case "REMOVE":
+                userDAO.removeFriendRequest(userId, friendId);
+                return modelMapper.map(friend, UserWithoutPassDTO.class);
+            default:
+                throw new BadRequestException("Invalid confirmation");
+        }
+    }
+
+    public List<UserWithoutPassDTO> findAllFriends(long userId, long pageNumber, long rowsNumber) {
         verifyUser(userId);
-        return userDAO.getMyAllFriends(userId);
+        return userDAO.getAllFriends(userId, pageNumber, rowsNumber);
+    }
+
+    public List<UserWithoutPassDTO> findAllFriendRequests(long userID, long pageNumber, long rowsNumber) {
+        verifyUser(userID);
+        return userDAO.findAllFriendRequestByUserId(userID, pageNumber, rowsNumber);
     }
 
     private static void setNewValues(EditProfileDTO dto, User user) {
@@ -176,7 +206,7 @@ public class UserService extends AbstractService {
         user.setGender(dto.getGender());
     }
 
-    private void validateFirsLastName(AbstractMasterDTO dto){
+    private void validateFirsLastName(AbstractMasterDTO dto) {
         if (RegexValidator.patternNames(dto.getFirstName())) {
             throw new BadRequestException("Invalid first name");
         }
@@ -185,7 +215,7 @@ public class UserService extends AbstractService {
         }
     }
 
-    private void validateMobileNumber(AbstractMasterDTO dto){
+    private void validateMobileNumber(AbstractMasterDTO dto) {
         if (RegexValidator.patternPhoneNumber(dto.getMobileNumber())) {
             throw new BadRequestException("Invalid phone number");
         }
@@ -196,7 +226,7 @@ public class UserService extends AbstractService {
         }
     }
 
-    private void validateEmail(AbstractMasterDTO dto){
+    private void validateEmail(AbstractMasterDTO dto) {
         if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
             throw new BadRequestException("An user with this email has already been registered.");
         }
@@ -205,13 +235,13 @@ public class UserService extends AbstractService {
         }
     }
 
-    private void validateGender(AbstractMasterDTO dto){
+    private void validateGender(AbstractMasterDTO dto) {
         if (!dto.getGender().equals("m") && !dto.getGender().equals("f") && !dto.getGender().equals("o")) {
             throw new BadRequestException("The gender is not valid.");
         }
     }
 
-    private void validatePassword(AbstractMasterDTO dto){
+    private void validatePassword(AbstractMasterDTO dto) {
         if (RegexValidator.patternPassword(dto.getPasswordHash())) {
             throw new BadRequestException("The password is not secure");
         }
@@ -239,9 +269,18 @@ public class UserService extends AbstractService {
         }
     }
 
-    private void compareBothId(long userId, long friendId, String message){
-        if (userId == friendId){
+    private void compareBothId(long userId, long friendId, String message) {
+        if (userId == friendId) {
             throw new BadRequestException(message);
         }
     }
+
+    private boolean thereAlreadyARequest(long userId, long friendId){
+        return userDAO.findFriendRequest(userId, friendId).size() > 0;
+    }
+
+    private boolean youAreAlreadyFriends(long userId, long friendId){
+        return userDAO.getFriendById(userId, friendId).size() > 0;
+    }
+
 }

@@ -25,17 +25,17 @@ public class PostService extends AbstractService {
     public static final String INVALID_REACTION = "Invalid reaction";
     public static final String DELETE_POST = "Post deleting successful";
 
-    public NewsFeedDTO createPost(long userId, CreatePostDTO dto) {
+    public NewsFeedDTO createPost(long userId, CreatePostDTO dto, long pageNumber, long rowsNumber) {
         dto.setCreatedAt(LocalDateTime.now());
         dto.setUpdatedAt(LocalDateTime.now());
         User user = verifyUser(userId);
         Post post = modelMapper.map(dto, Post.class);
         post.setOwner(user);
         postRepository.save(post);
-        return showNewsFeed(user);
+        return showNewsFeed(user, pageNumber, rowsNumber);
     }
 
-    public NewsFeedDTO editPost(long userId, long postId, EditPostDTO dto) {
+    public NewsFeedDTO editPost(long userId, long postId, EditPostDTO dto, long pageNumber, long rowsNumber) {
         User user = verifyUser(userId);
         Post post = verifyPost(postId);
         if (post.getOwner() != user) {
@@ -48,7 +48,7 @@ public class PostService extends AbstractService {
         post.setPrivacy(dto.getPrivacy());
         post.setUpdatedAt(LocalDateTime.now());
         postRepository.save(post);
-        return showNewsFeed(user);
+        return showNewsFeed(user, pageNumber, rowsNumber);
     }
 
     @Transactional
@@ -64,7 +64,8 @@ public class PostService extends AbstractService {
         return new DeletePostResponseDTO(LocalDateTime.now(), DELETE_POST);
     }
 
-    public NewsFeedDTO reactToPostOrDislike(long userId, long postId, String reaction) {
+    public NewsFeedDTO reactToPostOrDislike(long userId, long postId, String reaction, long pageNumber,
+                                                                                       long rowsNumber) {
         if (isWrongReaction(reaction)) {
             throw new BadRequestException(INVALID_REACTION);
         }
@@ -75,12 +76,12 @@ public class PostService extends AbstractService {
 
         if (isFirstReaction(userId, postId)) {
             reactToPost(userId, postId, reaction, user, post, postReactionsKey, postReaction);
-        } else if (isReactionTypesAreDifferent(userId, postId, reaction)) {
+        } else if (reactionTypesAreDifferent(userId, postId, reaction)) {
             postDAO.updatePostReactionType(userId, postId, reaction);
         } else {
             postDAO.deletePostReactionType(userId, postId);
         }
-        return showNewsFeed(user);
+        return showNewsFeed(user, pageNumber, rowsNumber);
     }
 
     private boolean isWrongReaction(String reaction) {
@@ -89,7 +90,7 @@ public class PostService extends AbstractService {
     }
 
     private void reactToPost(long userId, long postId, String reaction, User user, Post post,
-                             PostReactionsKey postReactionsKey, PostReaction postReaction) {
+                                PostReactionsKey postReactionsKey, PostReaction postReaction) {
         postReactionsKey.setUserId(userId);
         postReactionsKey.setPostId(postId);
         postReaction.setUser(user);
@@ -103,7 +104,7 @@ public class PostService extends AbstractService {
         return postDAO.getPostReactionType(userId, postId).size() == 0;
     }
 
-    private boolean isReactionTypesAreDifferent(long userId, long postId, String reaction) {
+    private boolean reactionTypesAreDifferent(long userId, long postId, String reaction) {
         String oldReaction = postDAO.getPostReactionType(userId, postId).get(0).getReactionType();
         return !oldReaction.equals(reaction);
     }

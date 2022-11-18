@@ -17,21 +17,27 @@ public class CommentController extends AbstractController {
     @PostMapping("/comments/post/{pid}")
     public ResponseEntity<NewsFeedDTO> commentPost(@RequestBody CommentWithOwnerDTO dto,
                                                    @PathVariable (name = "pid") long postID,
+                                                   @RequestParam long pageNumber,
+                                                   @RequestParam long rowsNumber,
                                                    HttpSession session){
         long userID = getUserByID(session);
-        return new ResponseEntity<>(commentService.commentPost(userID, postID, dto), HttpStatus.CREATED);
+        return new ResponseEntity<>(commentService.commentPost(userID, postID, dto, pageNumber, rowsNumber),
+                                                                                            HttpStatus.CREATED);
     }
 
     @PutMapping("/comments/{cid}")
     public ResponseEntity<NewsFeedDTO> editComment(@RequestBody EditCommentDTO dto,
                                                    @PathVariable (name = "cid") long commendID,
+                                                   @RequestParam long pageNumber,
+                                                   @RequestParam long rowsNumber,
                                                    HttpSession session){
         long userID = getUserByID(session);
-        return new ResponseEntity<>(commentService.editComment(userID, commendID, dto),OK);
+        return new ResponseEntity<>(commentService.editComment(userID, commendID, dto, pageNumber, rowsNumber),OK);
     }
 
     @DeleteMapping("/comments/{cid}")
-    public ResponseEntity<DeleteCommentResponseDTO> deleteComment(@PathVariable (name = "cid") long commentID, HttpSession session){
+    public ResponseEntity<DeleteCommentResponseDTO> deleteComment(@PathVariable (name = "cid") long commentID,
+                                                                                        HttpSession session){
         long userID = getUserByID(session);
         return new ResponseEntity<>(commentService.deleteComment(userID, commentID),OK);
     }
@@ -39,8 +45,11 @@ public class CommentController extends AbstractController {
     @PostMapping("/comments/{cid}/{react}")
     public ResponseEntity<NewsFeedDTO> reactToComment(@PathVariable(name = "cid") long commentID,
                                                       @PathVariable(name = "react") String reaction,
-                                                                               HttpSession session){
+                                                      @RequestParam long pageNumber,
+                                                      @RequestParam long rowsNumber,
+                                                      HttpSession session){
         long userID = getUserByID(session);
-        return new ResponseEntity<>(commentService.reactToCommentOrDislike(userID, commentID, reaction),OK);
+        return new ResponseEntity<>(commentService.reactToCommentOrDislike(userID, commentID, reaction, pageNumber,
+                                                                                                        rowsNumber),OK);
     }
 }

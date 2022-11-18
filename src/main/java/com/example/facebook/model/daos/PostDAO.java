@@ -40,7 +40,7 @@ public class PostDAO {
             "JOIN users AS u ON (p.owner_id = u.id) " +
             "WHERE p.owner_id = ? " +
             "AND p.privacy = 'only friends'"  +
-            "ORDER BY created_at DESC";
+            "ORDER BY created_at DESC LIMIT ?, ?";
 
     public static final String SQL_MY_POSTS =
             "SELECT CONCAT (u.first_name,' ',u.last_name) AS full_name," +
@@ -48,7 +48,7 @@ public class PostDAO {
             "FROM posts AS p " +
             "JOIN users AS u ON (p.owner_id = u.id) " +
             "WHERE p.owner_id = ? " +
-            "ORDER BY created_at DESC";
+            "ORDER BY created_at DESC LIMIT ?, ?";
 
     public static final String SQL_UPDATE_POST_REACTION =
             "UPDATE post_reactions " +
@@ -61,12 +61,10 @@ public class PostDAO {
                     "WHERE user_id = ? " +
                     "AND post_id = ?";
 
-
     public static final String SQL_DISLIKE_POSTS =
             "DELETE FROM post_reactions " +
                     "WHERE user_id = ? " +
                     "AND post_id = ?";
-
 
     public static final String SQL_DELETE_POST =
             "DELETE FROM posts " +
@@ -74,7 +72,8 @@ public class PostDAO {
                     "AND owner_id = ?";
 
 
-    public List<PostWithoutOwnerDTO> getNewsFeedForUserID(long userId){
+    public List<PostWithoutOwnerDTO> getNewsFeedForUserID(long userId, long pageNumber, long rowsNumber){
+        long skipsNumber = pageNumber * rowsNumber;
         return jdbcTemplate.query(SQL_NEWS_FEED,
                 new PreparedStatementSetter() {
                     @Override
@@ -82,6 +81,8 @@ public class PostDAO {
                         ps.setLong(1, userId);
                         ps.setLong(2, userId);
                         ps.setLong(3, userId);
+                        ps.setLong(4, skipsNumber);
+                        ps.setLong(5, rowsNumber);
                     }
                 }, (rs, rowNum) -> new PostWithoutOwnerDTO(
                         rs.getString("full_name"),
@@ -94,12 +95,15 @@ public class PostDAO {
                 ));
     }
 
-    public List<PostWithoutOwnerDTO> getMyPostForUserID(long userId){
+    public List<PostWithoutOwnerDTO> getMyPostForUserID(long userId, long pageNumber, long rowsNumber){
+        long skipsNumber = pageNumber * rowsNumber;
         return jdbcTemplate.query(SQL_MY_POSTS,
                 new PreparedStatementSetter() {
                     @Override
                     public void setValues(PreparedStatement ps) throws SQLException {
                         ps.setLong(1, userId);
+                        ps.setLong(2, skipsNumber);
+                        ps.setLong(3, rowsNumber);
                     }
                 }, (rs, rowNum) -> new PostWithoutOwnerDTO(
                         rs.getString("full_name"),
